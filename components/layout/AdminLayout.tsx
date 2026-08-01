@@ -2,25 +2,23 @@
 
 import React from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
     LayoutDashboard,
-    Home,
     Package,
     ShoppingCart,
     Layers,
     Users,
-    Megaphone,
     LogOut,
     ShieldCheck,
     SearchCheck,
-    Zap,
+    Ticket,
     Menu,
     Sun,
     Moon,
-    Image as ImageIcon
 } from 'lucide-react'
 import {
     Sheet,
@@ -57,6 +55,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
         // --- MỤC MỚI THÊM ---
         { path: '/admin/warranty', icon: <ShieldCheck size={20} />, label: 'Quản lý bảo hành' },
         { path: '/admin/warranty-check', icon: <SearchCheck size={20} />, label: 'Tra cứu bảo hành' },
+        { path: '/admin/warranty-tickets', icon: <Ticket size={20} />, label: 'Ticket lỗi' },
         // -------------------
         { path: '/admin/users', icon: <Users size={20} />, label: 'Người dùng' },
 
@@ -66,9 +65,11 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
         <>
             <div className="p-6 border-b border-gray-100 dark:border-white/5">
                 <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className="block transition-transform duration-200 hover:scale-[1.02]">
-                    <img
+                    <Image
                         src="/img/logo-telectric.png"
                         alt="TLECTRIC Admin"
+                        width={160}
+                        height={96}
                         className="h-24 w-auto object-contain"
                     />
                 </Link>

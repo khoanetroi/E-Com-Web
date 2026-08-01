@@ -1,9 +1,7 @@
 import { Metadata } from "next"
-import Image from "next/image"
-
 import { Separator } from "@/components/ui/separator"
 import { SidebarNav } from "@/components/account/sidebar-nav"
-import { User, Bell, History, Shield, CreditCard, Ticket } from "lucide-react"
+import { User, Bell, History, Ticket } from "lucide-react"
 import DefaultLayout from "@/components/layout/DefaultLayout"
 
 export const metadata: Metadata = {
@@ -29,6 +27,11 @@ const historyNavItems = [
         title: "Lịch sử đơn hàng",
         href: "/account/orders",
         icon: <History className="w-4 h-4" />,
+    },
+    {
+        title: "Ticket báo lỗi",
+        href: "/account/tickets",
+        icon: <Ticket className="w-4 h-4" />,
     },
 ]
 
