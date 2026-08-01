@@ -64,27 +64,28 @@ export async function analyzeWarrantyTicketWithGemini(input: {
     response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
       {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          maxOutputTokens: 512,
-          responseMimeType: "application/json",
-          responseJsonSchema: {
-            type: "object",
-            properties: {
-              diagnosis: { type: "string" },
-              temporaryAdvice: { type: "string" },
-              severity: { type: "string", enum: ["low", "medium", "high"] },
-              confidence: { type: "number" },
-              followUpQuestions: { type: "array", items: { type: "string" } },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            maxOutputTokens: 2048,
+            thinkingConfig: { thinkingLevel: "low" },
+            responseMimeType: "application/json",
+            responseJsonSchema: {
+              type: "object",
+              properties: {
+                diagnosis: { type: "string" },
+                temporaryAdvice: { type: "string" },
+                severity: { type: "string", enum: ["low", "medium", "high"] },
+                confidence: { type: "number" },
+                followUpQuestions: { type: "array", items: { type: "string" } },
+              },
+              required: ["diagnosis", "temporaryAdvice", "severity", "confidence", "followUpQuestions"],
             },
-            required: ["diagnosis", "temporaryAdvice", "severity", "confidence", "followUpQuestions"],
           },
-        },
-      }),
+        }),
       },
     );
   } catch (error) {
