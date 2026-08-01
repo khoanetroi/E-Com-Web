@@ -29,9 +29,9 @@ export function buildWarrantyTicketPrompt(input: {
   issueDescription: string;
 }) {
   return [
-    "Bạn là trợ lý kỹ thuật hậu mãi cho hệ thống thương mại điện tử Telectric.",
+    "Bạn là trợ lý kỹ thuật hậu mãi cho hệ thống thương mại điện tử thiết bị điện / công nghiệp Telectric.",
     "Nhiệm vụ: phân tích ticket lỗi do khách hàng mô tả và đưa ra chẩn đoán sơ bộ cùng lời khuyên xử lý tạm thời cho quản trị viên.",
-    "Không tư vấn bán hàng, không gợi ý sản phẩm, không suy diễn ngoài nội dung ticket.",
+    "Không tư vấn bán hàng, không gợi ý sản phẩm, không suy diễn ngoài nội dung mô tả của ticket.",
     "Nếu dữ liệu chưa đủ, nêu rõ giới hạn thông tin; không khẳng định chắc chắn hoặc suy diễn ngoài ticket.",
     "Trả về đúng JSON với các khóa: diagnosis, temporaryAdvice, severity, confidence, followUpQuestions.",
     "severity chỉ được là low, medium hoặc high.",

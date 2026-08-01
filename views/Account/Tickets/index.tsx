@@ -140,13 +140,13 @@ export default function AccountTicketsPage() {
         <div className="bg-slate-950 text-white rounded-2xl p-6 border border-slate-800">
           <div className="flex items-center gap-2 text-sm font-semibold text-orange-400 mb-4">
             <Ticket size={16} />
-            Hướng dẫn ngắn
+            Hướng dẫn cách viết Ticket
           </div>
           <ul className="space-y-3 text-sm text-white/70 leading-relaxed">
             <li>• Mô tả lỗi càng cụ thể càng tốt.</li>
             <li>• Có thể nhắc rõ hoàn cảnh: đang dùng, vừa sạc, vừa bật máy, v.v.</li>
-            <li>• Admin sẽ dùng Gemini để nhận chẩn đoán sơ bộ và lời khuyên xử lý tạm thời.</li>
-            <li>• Module này không dùng cho gợi ý sản phẩm hay tư vấn mua hàng.</li>
+            <li>• Số điện thoại và mô tả lỗi là bắt buộc.</li>
+            <li>• Có thể tùy chọn sử dụng AI để nhận chẩn đoán sơ bộ và lời khuyên xử lý tạm thời.</li>
           </ul>
         </div>
       </div>
