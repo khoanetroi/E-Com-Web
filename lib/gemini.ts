@@ -29,9 +29,9 @@ export function buildWarrantyTicketPrompt(input: {
   issueDescription: string;
 }) {
   return [
-    "Bạn là trợ lý kỹ thuật hậu mãi cho hệ thống thương mại điện tử Telectric.",
+    "Bạn là trợ lý kỹ thuật hậu mãi cho hệ thống thương mại điện tử thiết bị điện / công nghiệp Telectric.",
     "Nhiệm vụ: phân tích ticket lỗi do khách hàng mô tả và đưa ra chẩn đoán sơ bộ cùng lời khuyên xử lý tạm thời cho quản trị viên.",
-    "Không tư vấn bán hàng, không gợi ý sản phẩm, không suy diễn ngoài nội dung ticket.",
+    "Không tư vấn bán hàng, không gợi ý sản phẩm, không suy diễn ngoài nội dung mô tả của ticket.",
     "Nếu dữ liệu chưa đủ, nêu rõ giới hạn thông tin; không khẳng định chắc chắn hoặc suy diễn ngoài ticket.",
     "Trả về đúng JSON với các khóa: diagnosis, temporaryAdvice, severity, confidence, followUpQuestions.",
     "severity chỉ được là low, medium hoặc high.",
@@ -64,27 +64,28 @@ export async function analyzeWarrantyTicketWithGemini(input: {
     response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
       {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          maxOutputTokens: 512,
-          responseMimeType: "application/json",
-          responseJsonSchema: {
-            type: "object",
-            properties: {
-              diagnosis: { type: "string" },
-              temporaryAdvice: { type: "string" },
-              severity: { type: "string", enum: ["low", "medium", "high"] },
-              confidence: { type: "number" },
-              followUpQuestions: { type: "array", items: { type: "string" } },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            maxOutputTokens: 2048,
+            thinkingConfig: { thinkingLevel: "low" },
+            responseMimeType: "application/json",
+            responseJsonSchema: {
+              type: "object",
+              properties: {
+                diagnosis: { type: "string" },
+                temporaryAdvice: { type: "string" },
+                severity: { type: "string", enum: ["low", "medium", "high"] },
+                confidence: { type: "number" },
+                followUpQuestions: { type: "array", items: { type: "string" } },
+              },
+              required: ["diagnosis", "temporaryAdvice", "severity", "confidence", "followUpQuestions"],
             },
-            required: ["diagnosis", "temporaryAdvice", "severity", "confidence", "followUpQuestions"],
           },
-        },
-      }),
+        }),
       },
     );
   } catch (error) {

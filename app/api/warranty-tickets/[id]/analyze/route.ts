@@ -70,6 +70,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
 
     return NextResponse.json({ data: { ticket: updatedTicket, analysis } });
   } catch (analysisError) {
+    console.error("Lỗi phân tích Gemini:", analysisError);
     await supabase
       .from("warranty_tickets")
       .update({ status: "received", updated_at: new Date().toISOString() })
