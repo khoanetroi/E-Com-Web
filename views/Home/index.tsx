@@ -10,47 +10,46 @@ import { BrandMarquee } from "./components/BrandMarquee";
 import { Gauge, Thermometer, Wind, Zap, Settings, LayoutGrid } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-const ICON_MAP: Record<string, any> = {
-    Zap: Zap,
-    Gauge: Gauge,
-    Wind: Wind,
-    Thermometer: Thermometer,
-    Settings: Settings,
-    LayoutGrid: LayoutGrid,
-};
+// Màu sắc và icon mặc định cho từng section danh mục
+const ACCENT_COLORS = [
+    "bg-red-600", "bg-blue-600", "bg-orange-500",
+    "bg-emerald-600", "bg-purple-600", "bg-cyan-600",
+];
+const ICON_LIST = [Gauge, Wind, Thermometer, Zap, Settings, LayoutGrid];
 
 export default function HomePage() {
     const supabase = React.useMemo(() => createClient(), []);
-    const [featuredSettings, setFeaturedSettings] = React.useState<any[]>([]);
+    const [categorySettings, setCategorySettings] = React.useState<any[]>([]);
     const [loading, setLoading] = React.useState(true);
 
     React.useEffect(() => {
-        const fetchSettings = async () => {
+        const fetchCategories = async () => {
+            // Lấy danh mục gốc (không có parent_id) từ bảng categories
             const { data, error } = await supabase
-                .from("home_featured_categories")
-                .select(`
-                    *,
-                    categories!category_id (
-                        name,
-                        slug
-                    )
-                `)
-                .order("order_index");
+                .from("categories")
+                .select("id, name, slug")
+                .is("parent_id", null)
+                .order("created_at", { ascending: true });
 
             if (error) {
-                console.error("Error fetching homepage settings:", error);
-                // Fallback to defaults if table doesn't exist yet
-                setFeaturedSettings([
-                    { order_index: 0, accent_color: "bg-red-600", icon_name: "Gauge", categories: { name: "Đồng hồ đo điện", slug: "dong-ho" }, pinned_product_ids: [] },
-                    { order_index: 1, accent_color: "bg-blue-600", icon_name: "Wind", categories: { name: "Thiết bị điện tử", slug: "thiet-bi-dien-tu" }, pinned_product_ids: [] },
-                    { order_index: 2, accent_color: "bg-orange-500", icon_name: "Thermometer", categories: { name: "Thiết bị đo nhiệt độ", slug: "ngan" }, pinned_product_ids: [] },
-                ]);
+                console.error("Error fetching categories:", error);
+                setCategorySettings([]);
             } else if (data && data.length > 0) {
-                setFeaturedSettings(data);
+                // Map mỗi danh mục gốc thành 1 section trên trang chủ
+                const mapped = data.map((cat, index) => ({
+                    id: cat.id,
+                    accent_color: ACCENT_COLORS[index % ACCENT_COLORS.length],
+                    categories: { name: cat.name, slug: cat.slug },
+                    pinned_product_ids: [],
+                    banner_url: null,
+                    section_title: null,
+                    pinned_brand_names: [],
+                }));
+                setCategorySettings(mapped);
             }
             setLoading(false);
         };
-        fetchSettings();
+        fetchCategories();
     }, [supabase]);
 
     return (
@@ -60,8 +59,8 @@ export default function HomePage() {
                 <TrustBadges />
                 <FlashSale />
 
-                {!loading && featuredSettings.map((item, index) => {
-                    const IconComp = ICON_MAP[item.icon_name] || Zap;
+                {!loading && categorySettings.map((item, index) => {
+                    const IconComp = ICON_LIST[index % ICON_LIST.length];
                     return (
                         <CategorySection
                             key={item.id || index}

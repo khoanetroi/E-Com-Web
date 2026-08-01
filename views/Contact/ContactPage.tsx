@@ -89,8 +89,8 @@ export default function ContactPage() {
 
                                             <div className="flex gap-4 items-center">
                                                 <div><Mail className="h-5 w-5 text-slate-400 dark:text-slate-500 shrink-0" /></div>
-                                                <a href="mailto:telectric1992@gmail.com" className="hover:text-electric-orange font-medium transition-colors">
-                                                    telectric1992@gmail.com
+                                                <a href="mailto:khoa95905@gmail.com" className="hover:text-electric-orange font-medium transition-colors">
+                                                    khoa95905@gmail.com
                                                 </a>
                                             </div>
 

@@ -152,14 +152,7 @@ export default function ProductForm({ initialData }: { initialData?: any }) {
 
     // Fetch brand logos
     useEffect(() => {
-        const fetchBrandLogos = async () => {
-            const { data } = await supabase
-                .from("brand_logos")
-                .select("id, brand_name, logo_url")
-                .order("brand_name");
-            setBrandLogos(data || []);
-        };
-        fetchBrandLogos();
+        setBrandLogos([]);
     }, [supabase]);
 
     // Close brand dropdown on outside click

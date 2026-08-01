@@ -14,15 +14,8 @@ export function BrandMarquee() {
     const [brands, setBrands] = useState<BrandLogo[]>([]);
 
     useEffect(() => {
-        supabase
-            .from("brand_logos")
-            .select("brand_name, logo_url")
-            .not("logo_url", "is", null)
-            .order("brand_name")
-            .then(({ data }) => {
-                if (data && data.length > 0) setBrands(data as BrandLogo[]);
-            });
-    }, [supabase]);
+        setBrands([]);
+    }, []);
 
     if (brands.length === 0) return null;
 
