@@ -78,12 +78,7 @@ export default async function Home() {
         }
     });
 
-    // ── Fetch brands for SEO ──
-    const { data: brands } = await supabase
-        .from("brand_logos")
-        .select("brand_name")
-        .not("logo_url", "is", null)
-        .order("brand_name");
+
 
     // ── JSON-LD: WebSite + SearchAction ──
     const websiteJsonLd = {
@@ -179,21 +174,7 @@ export default async function Home() {
                     </ul>
                 </section>
 
-                {/* Thương hiệu */}
-                {brands && brands.length > 0 && (
-                    <section aria-label="Thương hiệu đối tác">
-                        <h2>Thương hiệu đối tác</h2>
-                        <ul>
-                            {brands.map((b: any) => (
-                                <li key={b.brand_name}>
-                                    <Link href={`/products?brand=${encodeURIComponent(b.brand_name)}`}>
-                                        {b.brand_name}
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
-                )}
+
             </div>
 
             {/* Client-side interactive UI */}

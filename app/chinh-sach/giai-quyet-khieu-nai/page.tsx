@@ -33,7 +33,7 @@ export default function GiaiQuyetKhieuNaiPage() {
             <ul>
                 <li><strong>Địa chỉ:</strong> 61/9/6 ĐHT03, tổ 12, khu phố 5, Phường Tân Hưng Thuận, Quận 12, TP.HCM</li>
                 <li><strong>Hotline:</strong> <strong>093.400.14.35</strong></li>
-                <li><strong>Email:</strong> cskh@telectric.vn / telectric1992@gmail.com</li>
+                <li><strong>Email:</strong> cskh@telectric.vn / khoa95905@gmail.com</li>
             </ul>
         </PolicyLayout>
     );

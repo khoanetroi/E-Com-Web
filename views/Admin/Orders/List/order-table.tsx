@@ -195,7 +195,7 @@ function printBill(order: any) {
         <!-- Footer -->
         <div style="border-top:1px solid #e5e7eb;padding-top:20px;text-align:center;">
             <p style="font-size:13px;color:#888;margin-bottom:4px;">Cảm ơn quý khách đã mua hàng tại <strong style="color:#ea580c;">TELECTRIC</strong></p>
-            <p style="font-size:11px;color:#aaa;">Liên hệ hỗ trợ: 093.400.14.35 · telectric1992@gmail.com</p>
+            <p style="font-size:11px;color:#aaa;">Liên hệ hỗ trợ: 093.400.14.35 · khoa95905@gmail.com</p>
         </div>
 
         <!-- Print Button -->

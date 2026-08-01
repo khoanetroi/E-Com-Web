@@ -163,11 +163,7 @@ export function CategorySection({
 
         const fetchBrandLogos = async () => {
             if (!pinnedBrandNames || pinnedBrandNames.length === 0) { setBrands([]); return; }
-            const { data: logos } = await supabase.from("brand_logos").select("brand_name, logo_url").in("brand_name", pinnedBrandNames);
-            setBrands(pinnedBrandNames.map(name => {
-                const logo = logos?.find(l => l.brand_name.toLowerCase() === name.toLowerCase());
-                return { name, logoUrl: logo?.logo_url || null };
-            }));
+            setBrands(pinnedBrandNames.map(name => ({ name, logoUrl: null })));
         };
         fetchBrandLogos();
     }, [parentCatId, supabase, pinnedBrandNames]);
