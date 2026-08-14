@@ -320,8 +320,8 @@ function StatusUpdateDialog({
     const [newStatus, setNewStatus] = useState("");
     const [newPaymentStatus, setNewPaymentStatus] = useState("");
 
-    // 3 trạng thái đơn hàng chính
-    const ORDER_STATUSES = ["processing", "delivered", "cancelled"] as const;
+    // 5 trạng thái đơn hàng đầy đủ
+    const ORDER_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"] as const;
 
     // Reset khi mở dialog
     React.useEffect(() => {
@@ -427,11 +427,12 @@ function StatusUpdateDialog({
 // ===================== ORDER DETAIL DIALOG =====================
 
 function OrderDetailDialog({
-    open, onOpenChange, order
+    open, onOpenChange, order, onOpenStatusUpdate
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     order: any;
+    onOpenStatusUpdate?: () => void;
 }) {
     if (!order) return null;
     const items = order.order_items || [];
@@ -563,8 +564,19 @@ function OrderDetailDialog({
                         </div>
                     )}
 
-                    {/* Print Button */}
-                    <div className="border-t pt-4 flex justify-end">
+                    {/* Action Buttons */}
+                    <div className="border-t pt-4 flex items-center justify-between gap-2">
+                        {onOpenStatusUpdate && (
+                            <Button
+                                className="gap-2 bg-orange-600 hover:bg-orange-700 text-white font-semibold"
+                                onClick={() => {
+                                    onOpenChange(false);
+                                    onOpenStatusUpdate();
+                                }}
+                            >
+                                <Edit className="h-4 w-4" /> Cập nhật trạng thái
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             className="gap-2 border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
@@ -641,12 +653,16 @@ export function OrderTable({
             if (newStatus) updateData.status = newStatus;
             if (newPaymentStatus) updateData.payment_status = newPaymentStatus;
 
-            const { error } = await supabase
+            const { data: updatedData, error } = await supabase
                 .from("orders")
                 .update(updateData)
-                .eq("id", orderId);
+                .eq("id", orderId)
+                .select();
 
             if (error) throw error;
+            if (!updatedData || updatedData.length === 0) {
+                throw new Error("Không tìm thấy đơn hàng hoặc cập nhật không thành công.");
+            }
 
             // Chỉ chạy logic warranty khi STATUS ĐƠN HÀNG thực sự thay đổi
             const currentOrderStatus = orders.find(o => o.id === orderId)?.status;
@@ -933,7 +949,15 @@ export function OrderTable({
                                             </TableCell>
 
                                             {/* Status */}
-                                            <TableCell className="text-center">
+                                            <TableCell
+                                                className="text-center"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setStatusOrder(order);
+                                                    setShowStatus(true);
+                                                }}
+                                                title="Bấm để cập nhật trạng thái"
+                                            >
                                                 <StatusBadge status={order.status} />
                                             </TableCell>
 
@@ -959,7 +983,7 @@ export function OrderTable({
                                             <TableCell onClick={(e) => e.stopPropagation()}>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
                                                             <MoreHorizontal className="h-4 w-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
@@ -1062,6 +1086,12 @@ export function OrderTable({
                 open={showDetail}
                 onOpenChange={setShowDetail}
                 order={detailOrder}
+                onOpenStatusUpdate={() => {
+                    if (detailOrder) {
+                        setStatusOrder(detailOrder);
+                        setShowStatus(true);
+                    }
+                }}
             />
             <StatusUpdateDialog
                 open={showStatus}
