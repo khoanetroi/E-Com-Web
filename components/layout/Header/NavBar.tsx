@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Home, Package, Zap, LifeBuoy, Percent, Sun, Moon, Megaphone, ShieldCheck, Menu, X } from "lucide-react";
+import { Home, Package, Zap, LifeBuoy, Percent, Sun, Moon, Megaphone, ShieldCheck, Menu, X, Ticket } from "lucide-react";
 import { useTheme } from "next-themes";
 
 
@@ -57,6 +57,8 @@ export const NavBar = () => {
 
                         <NavItem href="/warranty-check" icon={<ShieldCheck size={16} />} label="Tra cứu BH" onClick={() => setIsMobileMenuOpen(false)} />
                         <NavItem href="/contact" icon={<LifeBuoy size={16} />} label="Liên Hệ" onClick={() => setIsMobileMenuOpen(false)} />
+                        <NavItem href="/account/tickets" icon={<Ticket size={16} />} label="Báo lỗi SP" onClick={() => setIsMobileMenuOpen(false)} />
+
                     </ul>
                 </nav>
 

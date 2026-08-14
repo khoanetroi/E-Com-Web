@@ -1,6 +1,9 @@
+import { useToast } from "@/components/ui/use-toast";
 import type { WarrantyTicketAnalysis } from "@/lib/warranty-ticket";
 
-const DEFAULT_MODEL = "gemini-3.5-flash";
+const DEFAULT_MODEL = "gemini-3.5-flash-lite";
+
+const { toast } = useToast()
 
 function safeJsonParse<T>(value: string): T | null {
   try {
@@ -30,14 +33,16 @@ export function buildWarrantyTicketPrompt(input: {
 }) {
   return [
     "Bạn là trợ lý kỹ thuật hậu mãi cho hệ thống thương mại điện tử thiết bị điện / công nghiệp Telectric.",
-    "Nhiệm vụ: phân tích ticket lỗi do khách hàng mô tả và đưa ra chẩn đoán sơ bộ cùng lời khuyên xử lý tạm thời cho quản trị viên.",
+    `Nhiệm vụ: phân tích ticket lỗi do khách hàng mô tả và đưa ra chẩn đoán sơ bộ cùng lời khuyên xử lý tạm thời cho quản trị viên.
+    Quan trọng: luôn luôn dựa vào tên sản phẩm, mô tả lỗi của sản phẩm để đưa ra chẩn đoán và lời khuyên chính xác nhất, không trả lời chung chung.
+    `,
     "Không tư vấn bán hàng, không gợi ý sản phẩm, không suy diễn ngoài nội dung mô tả của ticket.",
     "Nếu dữ liệu chưa đủ, nêu rõ giới hạn thông tin; không khẳng định chắc chắn hoặc suy diễn ngoài ticket.",
     "Trả về đúng JSON với các khóa: diagnosis, temporaryAdvice, severity, confidence, followUpQuestions.",
     "severity chỉ được là low, medium hoặc high.",
     "confidence là số từ 0 đến 1.",
     "followUpQuestions là mảng câu hỏi cần hỏi thêm nếu còn thiếu thông tin.",
-    "Ngôn ngữ phản hồi phải là tiếng Việt, ngắn gọn, thực dụng, phù hợp cho admin xem nhanh.",
+    "Ngôn ngữ phản hồi phải là tiếng Việt, có dấu, ngắn gọn, thực dụng, phù hợp cho admin xem nhanh.",
     "",
     `Thông tin ticket:\n- Sản phẩm: ${input.productName || "Không có"}\n- Serial: ${input.serialNumber || "Không có"}\n- Mô tả lỗi: ${input.issueDescription}`,
   ].join("\n");
@@ -71,7 +76,7 @@ export async function analyzeWarrantyTicketWithGemini(input: {
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           generationConfig: {
             maxOutputTokens: 2048,
-            thinkingConfig: { thinkingLevel: "low" },
+            // thinkingConfig: { thinkingLevel: "low" },
             responseMimeType: "application/json",
             responseJsonSchema: {
               type: "object",
@@ -90,14 +95,29 @@ export async function analyzeWarrantyTicketWithGemini(input: {
     );
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
+      toast({
+        variant: "destructive",
+        title: "Yêu cầu AI bị timeout",
+        description: "Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau",
+      })
       throw new Error("Gemini request timed out");
     }
+    toast({
+      variant: "destructive",
+      title: "Lỗi kết nối với AI",
+      description: "Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau",
+    })
     throw new Error("Could not connect to Gemini");
   } finally {
     clearTimeout(timeout);
   }
 
   if (!response.ok) {
+    toast({
+      variant: "destructive",
+      title: "Lỗi yêu cầu AI",
+      description: "Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau",
+    })
     throw new Error(`Gemini request failed: ${response.status}`);
   }
 
