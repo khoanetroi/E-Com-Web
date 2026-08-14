@@ -1,9 +1,6 @@
-import { useToast } from "@/components/ui/use-toast";
 import type { WarrantyTicketAnalysis } from "@/lib/warranty-ticket";
 
 const DEFAULT_MODEL = "gemini-3.5-flash-lite";
-
-const { toast } = useToast()
 
 function safeJsonParse<T>(value: string): T | null {
   try {
@@ -95,29 +92,14 @@ export async function analyzeWarrantyTicketWithGemini(input: {
     );
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      toast({
-        variant: "destructive",
-        title: "Yêu cầu AI bị timeout",
-        description: "Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau",
-      })
       throw new Error("Gemini request timed out");
     }
-    toast({
-      variant: "destructive",
-      title: "Lỗi kết nối với AI",
-      description: "Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau",
-    })
     throw new Error("Could not connect to Gemini");
   } finally {
     clearTimeout(timeout);
   }
 
   if (!response.ok) {
-    toast({
-      variant: "destructive",
-      title: "Lỗi yêu cầu AI",
-      description: "Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau",
-    })
     throw new Error(`Gemini request failed: ${response.status}`);
   }
 
