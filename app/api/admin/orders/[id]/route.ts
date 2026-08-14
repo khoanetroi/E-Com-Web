@@ -75,27 +75,48 @@ export async function PATCH(
 
         if (orderData?.order_items) {
           const now = new Date();
-          const warrantyCards = (orderData.order_items as any[]).map((item: any) => {
+          const shortOrderId = (orderId || "").replace(/-/g, "").slice(0, 8).toUpperCase();
+          const items = orderData.order_items as any[];
+
+          let totalCount = 0;
+          items.forEach((item) => {
+            totalCount += item.quantity || 1;
+          });
+
+          const warrantyCards: any[] = [];
+          let seq = 1;
+
+          items.forEach((item: any) => {
             const product = item.product_variants?.products;
             const warrantyMonths = product?.warranty_months ?? 12;
-            const expiryDate = new Date(now);
-            expiryDate.setMonth(expiryDate.getMonth() + warrantyMonths);
+            const quantity = item.quantity || 1;
 
-            return {
-              customer_phone: orderData.customer_phone,
-              customer_name: orderData.customer_name,
-              product_name: product?.name || "Sản phẩm",
-              serial_number: null,
-              purchase_date: now.toISOString().split("T")[0],
-              warranty_months: warrantyMonths,
-              expiry_date: expiryDate.toISOString().split("T")[0],
-              status: "active",
-            };
+            for (let q = 0; q < quantity; q++) {
+              const expiryDate = new Date(now);
+              expiryDate.setMonth(expiryDate.getMonth() + warrantyMonths);
+
+              const serialNumber =
+                totalCount > 1
+                  ? `SR-${shortOrderId}-${seq}`
+                  : `SR-${shortOrderId}`;
+              seq++;
+
+              warrantyCards.push({
+                customer_phone: orderData.customer_phone,
+                customer_name: orderData.customer_name,
+                product_name: product?.name || "Sản phẩm",
+                serial_number: serialNumber,
+                purchase_date: now.toISOString().split("T")[0],
+                warranty_months: warrantyMonths,
+                expiry_date: expiryDate.toISOString().split("T")[0],
+                status: "active",
+              });
+            }
           });
 
           if (warrantyCards.length > 0) {
             await supabase.from("warranty_cards").insert(warrantyCards);
-            warrantyNotice = `Đã tạo ${warrantyCards.length} phiếu bảo hành tự động`;
+            warrantyNotice = `Đã tạo ${warrantyCards.length} phiếu bảo hành tự động (Serial: ${warrantyCards[0].serial_number}${warrantyCards.length > 1 ? "..." : ""})`;
           }
         }
       } catch (warrantyErr) {
