@@ -320,8 +320,8 @@ function StatusUpdateDialog({
     const [newStatus, setNewStatus] = useState("");
     const [newPaymentStatus, setNewPaymentStatus] = useState("");
 
-    // 5 trạng thái đơn hàng đầy đủ
-    const ORDER_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"] as const;
+    // 3 trạng thái đơn hàng chính như giao diện ban đầu
+    const ORDER_STATUSES = ["processing", "delivered", "cancelled"] as const;
 
     // Reset khi mở dialog
     React.useEffect(() => {
@@ -648,118 +648,26 @@ export function OrderTable({
     const handleStatusUpdate = async (orderId: string, newStatus: string, newPaymentStatus: string) => {
         setIsUpdating(true);
         try {
-            // Build update object
-            const updateData: any = { updated_at: new Date().toISOString() };
-            if (newStatus) updateData.status = newStatus;
-            if (newPaymentStatus) updateData.payment_status = newPaymentStatus;
+            const res = await fetch(`/api/admin/orders/${orderId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    status: newStatus,
+                    payment_status: newPaymentStatus,
+                }),
+            });
 
-            const { data: updatedData, error } = await supabase
-                .from("orders")
-                .update(updateData)
-                .eq("id", orderId)
-                .select();
+            const result = await res.json();
 
-            if (error) throw error;
-            if (!updatedData || updatedData.length === 0) {
-                throw new Error("Không tìm thấy đơn hàng hoặc cập nhật không thành công.");
+            if (!res.ok) {
+                throw new Error(result.error || "Cập nhật không thành công");
             }
 
-            // Chỉ chạy logic warranty khi STATUS ĐƠN HÀNG thực sự thay đổi
-            const currentOrderStatus = orders.find(o => o.id === orderId)?.status;
-            const statusActuallyChanged = newStatus && newStatus !== currentOrderStatus;
-
-            // Auto-create warranty cards when status CHANGES to "delivered"
-            if (statusActuallyChanged && newStatus === "delivered") {
-                try {
-                    // Fetch order with items + product info
-                    const { data: orderData } = await supabase
-                        .from("orders")
-                        .select(`
-                            customer_name, customer_phone,
-                            order_items (
-                                quantity,
-                                product_variants (
-                                    products ( name, warranty_months )
-                                )
-                            )
-                        `)
-                        .eq("id", orderId)
-                        .single();
-
-                    if (orderData?.order_items) {
-                        const now = new Date();
-                        const warrantyCards = (orderData.order_items as any[]).map((item: any) => {
-                            const product = item.product_variants?.products;
-                            const warrantyMonths = product?.warranty_months ?? 12;
-                            const expiryDate = new Date(now);
-                            expiryDate.setMonth(expiryDate.getMonth() + warrantyMonths);
-
-                            return {
-                                customer_phone: orderData.customer_phone,
-                                customer_name: orderData.customer_name,
-                                product_name: product?.name || "Sản phẩm",
-                                serial_number: null,
-                                purchase_date: now.toISOString().split("T")[0],
-                                warranty_months: warrantyMonths,
-                                expiry_date: expiryDate.toISOString().split("T")[0],
-                                status: "active",
-                            };
-                        });
-
-                        if (warrantyCards.length > 0) {
-                            await supabase.from("warranty_cards").insert(warrantyCards);
-                            toast({
-                                title: "🛡️ Đã tạo phiếu bảo hành",
-                                description: `Tạo ${warrantyCards.length} phiếu bảo hành tự động`,
-                            });
-                        }
-                    }
-                } catch (warrantyErr) {
-                    console.error("Auto-create warranty failed:", warrantyErr);
-                    // Don't block the status update if warranty creation fails
-                }
-            }
-
-            // Auto-void warranty cards when order status CHANGES to cancelled
-            if (statusActuallyChanged && newStatus === "cancelled") {
-                try {
-                    const { data: orderData } = await supabase
-                        .from("orders")
-                        .select(`
-                            customer_phone,
-                            order_items (
-                                product_variants (
-                                    products ( name )
-                                )
-                            )
-                        `)
-                        .eq("id", orderId)
-                        .single();
-
-                    if (orderData?.customer_phone && orderData?.order_items) {
-                        const productNames = (orderData.order_items as any[])
-                            .map((item: any) => item.product_variants?.products?.name)
-                            .filter(Boolean);
-
-                        if (productNames.length > 0) {
-                            const { count } = await supabase
-                                .from("warranty_cards")
-                                .update({ status: "voided", updated_at: new Date().toISOString() })
-                                .eq("customer_phone", orderData.customer_phone)
-                                .in("product_name", productNames)
-                                .eq("status", "active");
-
-                            if (count && count > 0) {
-                                toast({
-                                    title: "⚠️ Đã huỷ phiếu bảo hành",
-                                    description: `Huỷ ${count} phiếu bảo hành do đơn hàng bị huỷ`,
-                                });
-                            }
-                        }
-                    }
-                } catch (voidErr) {
-                    console.error("Auto-void warranty failed:", voidErr);
-                }
+            if (result.warrantyNotice) {
+                toast({
+                    title: "🛡️ Thông báo bảo hành",
+                    description: result.warrantyNotice,
+                });
             }
 
             const parts = [];
@@ -775,7 +683,6 @@ export function OrderTable({
 
             setShowStatus(false);
             setStatusOrder(null);
-            // Refetch data thay vì router.refresh
             onRefresh();
         } catch (err: any) {
             toast({
@@ -787,6 +694,7 @@ export function OrderTable({
             setIsUpdating(false);
         }
     };
+
 
     // --- Stat Cards ---
     const statCards = [
