@@ -24,6 +24,7 @@ const emptyForm = {
   product_name: '',
   serial_number: '',
   issue_description: '',
+  run_ai_diagnosis: true,
 }
 
 export default function AccountTicketsPage() {
@@ -66,6 +67,7 @@ export default function AccountTicketsPage() {
         product_name: form.product_name || null,
         serial_number: form.serial_number || null,
         issue_description: form.issue_description,
+        run_ai_diagnosis: form.run_ai_diagnosis,
       }),
     })
 
@@ -120,6 +122,18 @@ export default function AccountTicketsPage() {
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500/20 resize-none"
             />
           </div>
+
+          <label className="flex items-center gap-2 select-none cursor-pointer w-fit">
+            <input
+              type="checkbox"
+              checked={form.run_ai_diagnosis}
+              onChange={(e) => setForm(prev => ({ ...prev, run_ai_diagnosis: e.target.checked }))}
+              className="w-4 h-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500 bg-slate-50 dark:bg-slate-950 dark:border-slate-700"
+            />
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+              Nhận chẩn đoán sơ bộ từ AI
+            </span>
+          </label>
 
           {message && (
             <div className="text-sm rounded-xl px-4 py-3 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300 border border-amber-200 dark:border-amber-500/20">
