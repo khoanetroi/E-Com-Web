@@ -1,30 +1,9 @@
-import { useToast } from "@/components/ui/use-toast";
 import type { WarrantyTicketAnalysis } from "@/lib/warranty-ticket";
+import { extractJsonBlock, safeJsonParse } from "./utils/jsonHelper";
 
 const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 
-const { toast } = useToast()
 
-function safeJsonParse<T>(value: string): T | null {
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return null;
-  }
-}
-
-function extractJsonBlock(rawText: string) {
-  const fenced = rawText.match(/```json\s*([\s\S]*?)\s*```/i);
-  if (fenced?.[1]) return fenced[1];
-
-  const firstBrace = rawText.indexOf("{");
-  const lastBrace = rawText.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    return rawText.slice(firstBrace, lastBrace + 1);
-  }
-
-  return rawText;
-}
 
 export function buildWarrantyTicketPrompt(input: {
   productName?: string | null;
@@ -76,7 +55,6 @@ export async function analyzeWarrantyTicketWithGemini(input: {
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           generationConfig: {
             maxOutputTokens: 2048,
-            // thinkingConfig: { thinkingLevel: "low" },
             responseMimeType: "application/json",
             responseJsonSchema: {
               type: "object",
@@ -95,29 +73,16 @@ export async function analyzeWarrantyTicketWithGemini(input: {
     );
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      toast({
-        variant: "destructive",
-        title: "Yêu cầu AI bị timeout",
-        description: "Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau",
-      })
+
       throw new Error("Gemini request timed out");
     }
-    toast({
-      variant: "destructive",
-      title: "Lỗi kết nối với AI",
-      description: "Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau",
-    })
     throw new Error("Could not connect to Gemini");
   } finally {
     clearTimeout(timeout);
   }
 
   if (!response.ok) {
-    toast({
-      variant: "destructive",
-      title: "Lỗi yêu cầu AI",
-      description: "Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau",
-    })
+
     throw new Error(`Gemini request failed: ${response.status}`);
   }
 
