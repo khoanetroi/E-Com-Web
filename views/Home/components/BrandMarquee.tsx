@@ -1,21 +1,30 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-
-interface BrandLogo {
-    brand_name: string;
-    logo_url: string | null;
-}
+import { BRAND_LIST, BrandItem } from "@/lib/constants/brands";
+import { createClient } from "@/lib/supabase/client";
 
 export function BrandMarquee() {
     const supabase = useMemo(() => createClient(), []);
-    const [brands, setBrands] = useState<BrandLogo[]>([]);
+    const [brands, setBrands] = useState<BrandItem[]>(BRAND_LIST);
 
     useEffect(() => {
-        setBrands([]);
-    }, []);
+        const fetchBrands = async () => {
+            try {
+                const { data } = await supabase
+                    .from("brand_logos")
+                    .select("id, brand_name, logo_url, created_at")
+                    .order("brand_name");
+                if (data && data.length > 0) {
+                    setBrands(data);
+                }
+            } catch {
+                // Keep default BRAND_LIST
+            }
+        };
+        fetchBrands();
+    }, [supabase]);
 
     if (brands.length === 0) return null;
 

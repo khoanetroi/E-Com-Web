@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { Loader2, RefreshCw, Sparkles, Ticket, Wand2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Loader2, RefreshCw, Sparkles, Ticket, Wand2, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 type WarrantyTicket = {
   id: string
@@ -24,7 +24,7 @@ export default function AdminWarrantyTicketsPage() {
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [selected, setSelected] = useState<WarrantyTicket | null>(null)
-  
+
   // Pagination
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -82,7 +82,7 @@ export default function AdminWarrantyTicketsPage() {
       method: 'DELETE',
       credentials: 'include',
     });
-    
+
     if (res.ok) {
       if (selected?.id === ticketId) setSelected(null);
       await fetchTickets(page);
@@ -160,7 +160,7 @@ export default function AdminWarrantyTicketsPage() {
                   </div>
                 ))}
               </div>
-              
+
               {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
@@ -190,9 +190,21 @@ export default function AdminWarrantyTicketsPage() {
         </div>
 
         <div className="bg-slate-950 text-white rounded-2xl border border-slate-800 p-6 space-y-4 h-fit sticky top-6">
-          <div className="flex items-center gap-2 text-orange-400 font-semibold text-sm">
-            <Sparkles size={16} />
-            Kết quả chẩn đoán
+          <div className="flex items-center justify-between gap-2 text-orange-400 font-semibold text-sm">
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} />
+              Kết quả chẩn đoán
+            </div>
+            {selected && (
+              <button
+                onClick={() => setSelected(null)}
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+                aria-label="Đóng chi tiết"
+                title="Đóng chi tiết"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
 
           {!selected ? (

@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { addToCart } from "@/lib/cart";
 import { RelatedProducts } from "./RelatedProducts";
+import { getBrandLogo } from "@/lib/constants/brands";
 
 // Types matching Supabase schema
 interface ProductVariant {
@@ -401,7 +402,10 @@ export default function ProductDetailPage({ productSlug, initialProduct, initial
                     <div className="lg:col-span-7">
                         {/* Brand & Origin */}
                         <div className="flex items-center gap-3 mb-4">
-                            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-electric-orange bg-orange-50 dark:bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-200 dark:border-orange-500/20 shadow-sm">
+                            <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-widest text-electric-orange bg-orange-50 dark:bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-200 dark:border-orange-500/20 shadow-sm">
+                                {getBrandLogo(product.brand) ? (
+                                    <img src={getBrandLogo(product.brand)!} alt={product.brand} className="h-4 w-auto max-w-[20px] object-contain rounded bg-white p-0.5" />
+                                ) : null}
                                 {product.brand}
                             </span>
                             <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">

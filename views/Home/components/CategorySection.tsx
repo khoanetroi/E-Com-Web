@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Zap, ArrowRight, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { getBrandLogo } from "@/lib/constants/brands";
 
 /* ─── Types ─── */
 interface SubCategory { id: string; name: string; slug: string; }
@@ -163,7 +164,7 @@ export function CategorySection({
 
         const fetchBrandLogos = async () => {
             if (!pinnedBrandNames || pinnedBrandNames.length === 0) { setBrands([]); return; }
-            setBrands(pinnedBrandNames.map(name => ({ name, logoUrl: null })));
+            setBrands(pinnedBrandNames.map(name => ({ name, logoUrl: getBrandLogo(name) })));
         };
         fetchBrandLogos();
     }, [parentCatId, supabase, pinnedBrandNames]);
