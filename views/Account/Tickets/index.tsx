@@ -109,7 +109,7 @@ export default function AccountTicketsPage() {
             <Field label="Họ tên" value={form.customer_name} onChange={(value) => setForm(prev => ({ ...prev, customer_name: value }))} placeholder="Nguyễn Văn A" />
             <Field label="Số điện thoại *" value={form.customer_phone} onChange={(value) => setForm(prev => ({ ...prev, customer_phone: value }))} placeholder="0901234567" />
             <Field label="Sản phẩm" value={form.product_name} onChange={(value) => setForm(prev => ({ ...prev, product_name: value }))} placeholder="Đồng hồ vạn năng" />
-            <Field label="Serial number" value={form.serial_number} onChange={(value) => setForm(prev => ({ ...prev, serial_number: value }))} placeholder="SN-..." />
+            {/* <Field label="Serial number" value={form.serial_number} onChange={(value) => setForm(prev => ({ ...prev, serial_number: value }))} placeholder="SN-..." /> */}
           </div>
 
           <div>
