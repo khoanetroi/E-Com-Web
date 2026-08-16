@@ -9,19 +9,29 @@ export function buildWarrantyTicketPrompt(input: {
   productName?: string | null;
   serialNumber?: string | null;
   issueDescription: string;
+  requesterRole?: 'client' | 'admin';
 }) {
+  const isClient = input.requesterRole === 'client';
+
+  const roleInstruction = isClient
+    ? `Nhiệm vụ: phân tích ticket lỗi do khách hàng mô tả và đưa ra chẩn đoán sơ bộ cùng lời khuyên xử lý tạm thời trực tiếp cho khách hàng. Lời lẽ cần nhẹ nhàng, trấn an, lịch sự và hướng dẫn cách xử lý cơ bản nhất có thể làm tại nhà hoặc gửi bảo hành.`
+    : `Nhiệm vụ: phân tích ticket lỗi do khách hàng mô tả và đưa ra chẩn đoán sơ bộ cùng lời khuyên xử lý tạm thời cho quản trị viên. Chẩn đoán và lời khuyên cần chi tiết để kỹ thuật viên hiểu rõ nhất`;
+
   return [
-    "Bạn là trợ lý kỹ thuật hậu mãi cho hệ thống thương mại điện tử thiết bị điện / công nghiệp Telectric.",
-    `Nhiệm vụ: phân tích ticket lỗi do khách hàng mô tả và đưa ra chẩn đoán sơ bộ cùng lời khuyên xử lý tạm thời cho quản trị viên.
-    Quan trọng: luôn luôn dựa vào tên sản phẩm, mô tả lỗi của sản phẩm để đưa ra chẩn đoán và lời khuyên chính xác nhất, không trả lời chung chung.
-    `,
+    "Bạn là trợ lý kỹ thuật hậu mãi cho hệ thống thương mại điện tử thiết bị điện công nghiệp Telectric.",
+    roleInstruction,
+    isClient
+      ? "Quan trọng: luôn luôn dựa vào tên sản phẩm, mô tả lỗi của sản phẩm để đưa ra chẩn đoán cơ bản, nhẹ nhàng để tránh người dùng cảm thấy tiêu cực về sản phẩm, lời khuyên cần dễ hiểu với người dùng, không nên dùng quá nhiều thuật ngữ kỹ thuật"
+      : "Quan trọng: luôn luôn dựa vào tên sản phẩm, mô tả lỗi của sản phẩm để đưa ra chẩn đoán và lời khuyên chính xác nhất, không trả lời chung chung.",
     "Không tư vấn bán hàng, không gợi ý sản phẩm, không suy diễn ngoài nội dung mô tả của ticket.",
     "Nếu dữ liệu chưa đủ, nêu rõ giới hạn thông tin; không khẳng định chắc chắn hoặc suy diễn ngoài ticket.",
     "Trả về đúng JSON với các khóa: diagnosis, temporaryAdvice, severity, confidence, followUpQuestions.",
     "severity chỉ được là low, medium hoặc high.",
     "confidence là số từ 0 đến 1.",
     "followUpQuestions là mảng câu hỏi cần hỏi thêm nếu còn thiếu thông tin.",
-    "Ngôn ngữ phản hồi phải là tiếng Việt, có dấu, ngắn gọn, thực dụng, phù hợp cho admin xem nhanh.",
+    isClient
+      ? "Ngôn ngữ phản hồi phải là tiếng Việt, có dấu, nhẹ nhàng, thân thiện, dễ hiểu cho người dùng cuối."
+      : "Ngôn ngữ phản hồi phải là tiếng Việt, có dấu, ngắn gọn, thực dụng, phù hợp cho admin và kỹ thuật viên xem và xử lý.",
     "",
     `Thông tin ticket:\n- Sản phẩm: ${input.productName || "Không có"}\n- Serial: ${input.serialNumber || "Không có"}\n- Mô tả lỗi: ${input.issueDescription}`,
   ].join("\n");
@@ -31,6 +41,7 @@ export async function analyzeWarrantyTicketWithGemini(input: {
   productName?: string | null;
   serialNumber?: string | null;
   issueDescription: string;
+  requesterRole?: 'client' | 'admin';
 }): Promise<WarrantyTicketAnalysis> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {

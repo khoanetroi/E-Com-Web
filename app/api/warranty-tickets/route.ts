@@ -96,6 +96,7 @@ export async function POST(request: Request) {
         // customerName: payload.customer_name || 'Khách hàng',
         productName: payload.product_name,
         issueDescription: payload.issue_description,
+        requesterRole: 'client',
       });
       if (diagnosis) {
         payload.ai_diagnosis = diagnosis.diagnosis;

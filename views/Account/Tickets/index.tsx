@@ -34,6 +34,7 @@ export default function AccountTicketsPage() {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [message, setMessage] = useState<string | null>(null)
+  const [productList, setProductList] = useState<string[]>([])
 
   const fetchTickets = async () => {
     setLoading(true)
@@ -43,8 +44,28 @@ export default function AccountTicketsPage() {
     setLoading(false)
   }
 
+  const fetchInitialData = async () => {
+    const [{ data: products }, { data: { user } }] = await Promise.all([
+      supabase.from('products').select('name').order('name'),
+      supabase.auth.getUser()
+    ]);
+
+    if (products) {
+      setProductList(products.map(p => p.name));
+    }
+
+    if (user) {
+      setForm(prev => ({
+        ...prev,
+        customer_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+        customer_phone: user.user_metadata?.phone || '',
+      }));
+    }
+  }
+
   useEffect(() => {
     fetchTickets()
+    fetchInitialData()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,8 +129,8 @@ export default function AccountTicketsPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Họ tên" value={form.customer_name} onChange={(value) => setForm(prev => ({ ...prev, customer_name: value }))} placeholder="Nguyễn Văn A" />
             <Field label="Số điện thoại *" value={form.customer_phone} onChange={(value) => setForm(prev => ({ ...prev, customer_phone: value }))} placeholder="0901234567" />
-            <Field label="Sản phẩm" value={form.product_name} onChange={(value) => setForm(prev => ({ ...prev, product_name: value }))} placeholder="Đồng hồ vạn năng" />
-            {/* <Field label="Serial number" value={form.serial_number} onChange={(value) => setForm(prev => ({ ...prev, serial_number: value }))} placeholder="SN-..." /> */}
+            <Field label="Sản phẩm" value={form.product_name} onChange={(value) => setForm(prev => ({ ...prev, product_name: value }))} placeholder="Đồng hồ vạn năng" list="product-list" listOptions={productList} />
+            <Field label="Serial number" value={form.serial_number} onChange={(value) => setForm(prev => ({ ...prev, serial_number: value }))} placeholder="SN-..." />
           </div>
 
           <div>
@@ -211,7 +232,7 @@ export default function AccountTicketsPage() {
   )
 }
 
-function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
+function Field({ label, value, onChange, placeholder, list, listOptions }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; list?: string; listOptions?: string[] }) {
   return (
     <div>
       <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">{label}</label>
@@ -219,8 +240,14 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        list={list}
         className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500/20"
       />
+      {list && listOptions && (
+        <datalist id={list}>
+          {listOptions.map((opt, i) => <option key={i} value={opt} />)}
+        </datalist>
+      )}
     </div>
   )
 }

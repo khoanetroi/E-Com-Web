@@ -47,6 +47,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
       productName: ticket.product_name,
       serialNumber: ticket.serial_number,
       issueDescription: ticket.issue_description,
+      requesterRole: 'admin',
     });
 
     const { data: updatedTicket, error: updateError } = await supabase

@@ -236,6 +236,14 @@ export default function AdminWarrantyTicketsPage() {
                   <div className="text-sm">{selected.customer_phone}</div>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs uppercase tracking-wide text-white/40 mb-1">Khách hàng</div>
+                  <div className="text-sm">{selected.customer_name}</div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs uppercase tracking-wide text-white/40 mb-1">Serial Number</div>
+                  <div className="text-sm">{selected.serial_number}</div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                   <div className="text-xs uppercase tracking-wide text-white/40 mb-1">Mức tin cậy AI</div>
                   <div className="text-sm">{selected.ai_confidence ? `${Math.round(selected.ai_confidence * 100)}%` : 'Chưa có'}</div>
                 </div>
