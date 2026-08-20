@@ -11,11 +11,11 @@ import { useSearchParams } from 'next/navigation';
 
 // Bank info — cập nhật theo thông tin thực tế
 const BANK_INFO = {
-    bankName: "BIDV",
-    bankFullName: "Ngân hàng thương mại cổ phần Đầu tư và Phát triển Việt Nam",
-    accountNumber: "6310927843",
-    accountName: "TRAN NGUYEN BA HUY",
-    branch: "Ngân hàng thương mại cổ phần Đầu tư và Phát triển Việt Nam",
+    bankName: "VIB",
+    bankFullName: "Ngân hàng Thương mại cổ phần Quốc tế Việt Nam",
+    accountNumber: "028365284",
+    accountName: "NGUYEN DAC TAI",
+    branch: "Ngân hàng Quốc tế Việt Nam",
 };
 
 function CopyButton({ text }: { text: string }) {
@@ -59,7 +59,7 @@ function QRPaymentPanel({ orderId }: { orderId: string | null }) {
                     <div className="flex-shrink-0 flex flex-col items-center">
                         <div className="relative w-64 h-64 sm:w-72 sm:h-72 rounded-2xl overflow-hidden border-4 border-white shadow-[0_12px_36px_rgba(37,99,235,0.15)] bg-white p-2">
                             <Image
-                                src="/img/QR-ThanhToan.jpg"
+                                src="/img/QR-ThanhToan.png"
                                 alt="QR Code thanh toán TELECTRIC"
                                 fill
                                 className="object-contain"
