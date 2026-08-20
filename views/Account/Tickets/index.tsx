@@ -12,9 +12,9 @@ type WarrantyTicket = {
   serial_number: string | null
   issue_description: string
   status: string
-  ai_diagnosis: string | null
-  ai_temporary_advice: string | null
-  ai_confidence: number | null
+  client_ai_diagnosis: string | null
+  client_ai_temporary_advice: string | null
+  client_ai_confidence: number | null
   created_at: string
 }
 
@@ -217,10 +217,10 @@ export default function AccountTicketsPage() {
                   <div className="text-xs text-slate-400 whitespace-nowrap">{new Date(ticket.created_at).toLocaleString('vi-VN')}</div>
                 </div>
 
-                {(ticket.ai_diagnosis || ticket.ai_temporary_advice) && (
+                {(ticket.client_ai_diagnosis || ticket.client_ai_temporary_advice) && (
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <InfoBox title="Chẩn đoán AI" value={ticket.ai_diagnosis || 'Đang chờ phân tích'} />
-                    <InfoBox title="Xử lý tạm thời" value={ticket.ai_temporary_advice || 'Đang chờ phân tích'} />
+                    <InfoBox title="Chẩn đoán AI" value={ticket.client_ai_diagnosis || 'Đang chờ phân tích'} />
+                    <InfoBox title="Xử lý tạm thời" value={ticket.client_ai_temporary_advice || 'Đang chờ phân tích'} />
                   </div>
                 )}
               </div>

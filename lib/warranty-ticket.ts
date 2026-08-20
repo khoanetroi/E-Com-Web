@@ -22,6 +22,9 @@ export type WarrantyTicket = {
   ai_confidence: number | null;
   ai_severity: "low" | "medium" | "high" | null;
   ai_follow_up_questions: string[] | null;
+  client_ai_diagnosis: string | null;
+  client_ai_temporary_advice: string | null;
+  client_ai_confidence: number | null;
   admin_note: string | null;
   created_at: string;
   updated_at: string;
