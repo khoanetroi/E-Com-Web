@@ -27,7 +27,10 @@ import {
     DollarSign,
     Activity,
     BarChart3,
+    Flame,
+    ShieldAlert,
 } from "lucide-react";
+import DefectRateAnalytics from "@/components/admin/DefectRateAnalytics";
 
 // ========================
 // TYPES
@@ -43,6 +46,8 @@ interface DashboardStats {
     totalProducts: number;
     totalUsers: number;
     totalNews: number;
+    totalTickets: number;
+    unresolvedTickets: number;
     recentOrders: RecentOrder[];
 }
 
@@ -396,11 +401,14 @@ export default function AdminDashboard() {
         totalProducts: 0,
         totalUsers: 0,
         totalNews: 0,
+        totalTickets: 0,
+        unresolvedTickets: 0,
         recentOrders: [],
     });
 
     const [deliveredOrders, setDeliveredOrders] = useState<{ total_amount: number; created_at: string }[]>([]);
     const [showRevenueDetail, setShowRevenueDetail] = useState(false);
+    const [showDefectDetail, setShowDefectDetail] = useState(false);
     const [timeFilter, setTimeFilter] = useState<'day' | 'week' | 'month'>('day');
     const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -443,6 +451,7 @@ export default function AdminDashboard() {
                     productsRes,
                     usersRes,
                     newsRes,
+                    ticketsRes,
                     pendingRes,
                     processingRes,
                     shippedRes,
@@ -455,6 +464,7 @@ export default function AdminDashboard() {
                     supabase.from("products").select("*", { count: "exact", head: true }),
                     supabase.from("profiles").select("*", { count: "exact", head: true }),
                     supabase.from("news").select("*", { count: "exact", head: true }),
+                    supabase.from("warranty_tickets").select("id, status"),
                     supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "pending"),
                     supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "processing"),
                     supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "shipped"),
@@ -470,6 +480,12 @@ export default function AdminDashboard() {
                 const deliveredData = revenueRes.data || [];
                 const totalRevenue = deliveredData.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
 
+                const ticketList = (ticketsRes.data || []) as Array<{ id: string; status?: string }>;
+                const totalTickets = ticketList.length;
+                const unresolvedTickets = ticketList.filter(
+                    (t) => t.status !== "resolved" && t.status !== "closed"
+                ).length;
+
                 setStats({
                     totalOrders: ordersRes.count || 0,
                     pendingOrders: pendingRes.count || 0,
@@ -481,6 +497,8 @@ export default function AdminDashboard() {
                     totalProducts: productsRes.count || 0,
                     totalUsers: usersRes.count || 0,
                     totalNews: newsRes.count || 0,
+                    totalTickets,
+                    unresolvedTickets,
                     recentOrders: recentRes.data || [],
                 });
                 setDeliveredOrders(deliveredData);
@@ -513,6 +531,16 @@ export default function AdminDashboard() {
             isActive: showRevenueDetail,
         },
         {
+            title: "Ticket lỗi",
+            value: loading ? "—" : `${stats.totalTickets} ticket`,
+            icon: <Flame size={22} />,
+            gradient: "bg-gradient-to-br from-rose-500 to-red-600",
+            subtitle: loading ? "Đang tải dữ liệu..." : `${stats.unresolvedTickets} chưa xử lý • Nhấp để xem biểu đồ`,
+            onClick: () => setShowDefectDetail(!showDefectDetail),
+            clickable: true,
+            isActive: showDefectDetail,
+        },
+        {
             title: "Sản phẩm",
             value: loading ? "—" : stats.totalProducts.toLocaleString("vi-VN"),
             icon: <Package size={22} />,
@@ -538,6 +566,14 @@ export default function AdminDashboard() {
             badge: stats.pendingOrders,
         },
         {
+            href: "/admin/warranty-tickets",
+            icon: <ShieldAlert size={20} />,
+            label: "Ticket lỗi & Bảo hành",
+            description: "Chẩn đoán AI & xử lý ticket",
+            color: "bg-gradient-to-br from-rose-500 to-red-600",
+            badge: stats.unresolvedTickets,
+        },
+        {
             href: "/admin/products",
             icon: <Package size={20} />,
             label: "Sản phẩm",
@@ -545,7 +581,6 @@ export default function AdminDashboard() {
             color: "bg-gradient-to-br from-blue-400 to-indigo-600",
             badge: 0,
         },
-
         {
             href: "/admin/users",
             icon: <Users size={20} />,
@@ -554,7 +589,6 @@ export default function AdminDashboard() {
             color: "bg-gradient-to-br from-purple-400 to-violet-600",
             badge: 0,
         },
-
         {
             href: "/admin/categories",
             icon: <Layers size={20} />,
@@ -579,7 +613,6 @@ export default function AdminDashboard() {
             color: "bg-gradient-to-br from-sky-400 to-blue-600",
             badge: 0,
         },
-
     ];
 
     return (
@@ -601,11 +634,18 @@ export default function AdminDashboard() {
             </div>
 
             {/* Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 {statCards.map((card, idx) => (
                     <StatCard key={idx} {...card} />
                 ))}
             </div>
+
+            {/* Defect Rate Details Panel (Click-to-Toggle) */}
+            {showDefectDetail && (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-300 rounded-2xl bg-white dark:bg-[#1e2330] border border-slate-100 dark:border-white/5 p-6 shadow-sm">
+                    <DefectRateAnalytics onClose={() => setShowDefectDetail(false)} />
+                </div>
+            )}
 
             {/* Revenue Details Panel */}
             {showRevenueDetail && (
