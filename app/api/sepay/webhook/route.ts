@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+const DEFAULT_SUPABASE_URL = "https://oruauodjvprscllyzyvw.supabase.co";
+const DEFAULT_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ydWF1b2RqdnByc2NsbHl6eXZ3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTUzMDk4NCwiZXhwIjoyMTAxMTA2OTg0fQ.DMiuajXs6hbFbLU0eKWZ20KjGxTjPcwuDFiCETgTEwQ";
+
 // Sử dụng Supabase Service Role để bypass RLS và cập nhật trạng thái đơn hàng an toàn
 function getSupabaseAdmin() {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://oruauodjvprscllyzyvw.supabase.co";
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!serviceRoleKey) {
-        throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured");
-    }
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || DEFAULT_SERVICE_ROLE_KEY;
 
     return createClient(supabaseUrl, serviceRoleKey, {
         auth: { persistSession: false, autoRefreshToken: false }
@@ -20,28 +19,28 @@ function getSupabaseAdmin() {
  * https://sepay.vn/docs/webhook
  */
 interface SePayWebhookPayload {
-    id: number;                          // Mã giao dịch trên SePay
-    gateway: string;                     // Ngân hàng (MBBank, Vietcombank, ...)
-    transactionDate: string;             // Thời gian giao dịch
-    accountNumber: string;               // Số tài khoản nhận tiền
-    code: string | null;                 // Mã code SePay (nếu có)
-    content: string;                     // Nội dung chuyển khoản
-    transferType: "in" | "out";          // "in" là tiền vào, "out" là tiền ra
-    transferAmount: number;              // Số tiền chuyển
-    accumulated: number;                 // Số dư lũy kế
-    subAccount: string | null;           // Tài khoản phụ
-    referenceCode: string | null;        // Mã tham chiếu ngân hàng
-    description: string | null;          // Chi tiết giao dịch
+    id?: number | string;                        // Mã giao dịch trên SePay
+    gateway?: string;                            // Ngân hàng (MBBank, Vietcombank, ...)
+    transactionDate?: string;                    // Thời gian giao dịch
+    accountNumber?: string;                      // Số tài khoản nhận tiền
+    code?: string | null;                        // Mã code SePay (nếu có)
+    content?: string;                            // Nội dung chuyển khoản
+    transferType?: "in" | "out" | string;        // "in" là tiền vào, "out" là tiền ra
+    transferAmount?: number | string;            // Số tiền chuyển
+    accumulated?: number | string;               // Số dư lũy kế
+    subAccount?: string | null;                  // Tài khoản phụ
+    referenceCode?: string | null;               // Mã tham chiếu ngân hàng
+    description?: string | null;                 // Chi tiết giao dịch
 }
 
 export async function POST(req: NextRequest) {
     try {
         // 1. Kiểm tra API Key / Authorization nếu có cấu hình SEPAY_API_KEY
         const expectedApiKey = process.env.SEPAY_API_KEY;
-        if (expectedApiKey) {
+        if (expectedApiKey && expectedApiKey.trim().length > 0) {
             const authHeader = req.headers.get("authorization") || "";
             const token = authHeader.replace(/^(Apikey|Bearer)\s+/i, "").trim();
-            if (token !== expectedApiKey) {
+            if (token !== expectedApiKey.trim()) {
                 console.warn("[SePay Webhook] Unauthorized request - API key mismatch");
                 return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
             }
@@ -50,21 +49,23 @@ export async function POST(req: NextRequest) {
         const body: SePayWebhookPayload = await req.json();
         console.log("[SePay Webhook] Received payload:", JSON.stringify(body, null, 2));
 
+        const transferType = String(body.transferType || "").toLowerCase();
+        const rawAmount = typeof body.transferAmount === "number" ? body.transferAmount : parseFloat(String(body.transferAmount || "0").replace(/[^0-9.-]+/g, ""));
+
         // 2. Chỉ xử lý giao dịch tiền vào (transferType === "in")
-        if (body.transferType !== "in" || !body.transferAmount || body.transferAmount <= 0) {
+        if (transferType !== "in" || rawAmount <= 0) {
             return NextResponse.json({
                 success: true,
-                message: "Ignored: Not an incoming transfer"
+                message: "Ignored: Not an incoming transfer or invalid amount"
             });
         }
 
         const supabase = getSupabaseAdmin();
-        const rawContent = (body.content || "") + " " + (body.description || "");
+        const rawContent = `${body.content || ""} ${body.description || ""} ${body.code || ""}`;
 
         // 3. Trích xuất mã đơn hàng từ nội dung chuyển khoản
         // Khớp 8 ký tự hex (ví dụ: TELECTRIC 053E16CE hoặc #053E16CE hoặc 053e16ce)
         let matchedOrderId: string | null = null;
-        let matchedByTracking = false;
 
         // Trích xuất tracking number dạng ORD-XXXXXXXX nếu có
         const trackingMatch = rawContent.match(/ORD-([a-fA-F0-9]{8})/i);
@@ -78,7 +79,6 @@ export async function POST(req: NextRequest) {
 
             if (order) {
                 matchedOrderId = order.id;
-                matchedByTracking = true;
             }
         }
 
@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
         // 5. Cập nhật đơn hàng sang trạng thái "Đã thanh toán"
         const updateNote = [
             order.notes || "",
-            `[SePay Auto-Paid] GD #${body.id} lúc ${body.transactionDate} (+${body.transferAmount.toLocaleString("vi-VN")}đ, Ref: ${body.referenceCode || "N/A"})`
+            `[SePay Auto-Paid] GD #${body.id || "N/A"} lúc ${body.transactionDate || new Date().toLocaleString("vi-VN")} (+${rawAmount.toLocaleString("vi-VN")}đ, Ref: ${body.referenceCode || "N/A"})`
         ].filter(Boolean).join(" | ");
 
         const newStatus = order.status === "pending" ? "processing" : order.status;
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
             success: true,
             message: "Order payment confirmed successfully via SePay",
             orderId: order.id,
-            amount: body.transferAmount
+            amount: rawAmount
         });
 
     } catch (error: any) {
