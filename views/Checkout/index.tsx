@@ -44,10 +44,10 @@ export default function CheckoutPage() {
 
     // Province / District / Ward
     const [provinces, setProvinces] = useState<Province[]>([]);
-    // const [districts, setDistricts] = useState<District[]>([]);
+    const [districts, setDistricts] = useState<District[]>([]);
     const [wards, setWards] = useState<Ward[]>([]);
     const [selectedProvince, setSelectedProvince] = useState("");
-    // const [selectedDistrict, setSelectedDistrict] = useState("");
+    const [selectedDistrict, setSelectedDistrict] = useState("");
     const [selectedWard, setSelectedWard] = useState("");
     const [provinceName, setProvinceName] = useState("");
     const [districtName, setDistrictName] = useState("");
@@ -163,33 +163,49 @@ export default function CheckoutPage() {
     }, []);
 
 
-    // Fetch provinces
+    // Fetch provinces (63 Tỉnh / Thành phố)
     useEffect(() => {
-        fetch("https://provinces.open-api.vn/api/v2/p/")
+        fetch("https://provinces.open-api.vn/api/p/")
             .then(res => res.json())
             .then(data => setProvinces(data))
             .catch(() => { });
     }, []);
 
     // Fetch districts when province selected
-    // useEffect(() => {
-    //     if (!selectedProvince) { setDistricts([]); return; }
-    //     fetch(`https://provinces.open-api.vn/api/v2/p/${selectedProvince}?depth=2`)
-    //         .then(res => res.json())
-    //         .then(data => {
-    //             setDistricts(data.districts || []);
-    //             setProvinceName(data.name || "");
-    //         })
-    //         .catch(() => { });
-    //     setSelectedDistrict("");
-    //     setSelectedWard("");
-    //     setWards([]);
-    // }, [selectedProvince]);
+    useEffect(() => {
+        if (!selectedProvince) {
+            setDistricts([]);
+            setProvinceName("");
+            setSelectedDistrict("");
+            setDistrictName("");
+            setWards([]);
+            setSelectedWard("");
+            setWardName("");
+            return;
+        }
+        fetch(`https://provinces.open-api.vn/api/p/${selectedProvince}?depth=2`)
+            .then(res => res.json())
+            .then(data => {
+                setDistricts(data.districts || []);
+                setProvinceName(data.name || "");
+            })
+            .catch(() => { });
+        setSelectedDistrict("");
+        setDistrictName("");
+        setSelectedWard("");
+        setWardName("");
+        setWards([]);
+    }, [selectedProvince]);
 
     // Fetch wards when district selected
     useEffect(() => {
-        if (!selectedProvince) { setWards([]); return; }
-        fetch(`https://provinces.open-api.vn/api/v2/p/${selectedProvince}?depth=2`)
+        if (!selectedDistrict) {
+            setWards([]);
+            setSelectedWard("");
+            setWardName("");
+            return;
+        }
+        fetch(`https://provinces.open-api.vn/api/d/${selectedDistrict}?depth=2`)
             .then(res => res.json())
             .then(data => {
                 setWards(data.wards || []);
@@ -197,9 +213,17 @@ export default function CheckoutPage() {
             })
             .catch(() => { });
         setSelectedWard("");
-    }, [selectedProvince]);
+        setWardName("");
+    }, [selectedDistrict]);
 
-    // Ward name
+    // District change
+    const handleDistrictChange = (districtCode: string) => {
+        setSelectedDistrict(districtCode);
+        const d = districts.find(d => d.code.toString() === districtCode);
+        setDistrictName(d?.name || "");
+    };
+
+    // Ward change
     const handleWardChange = (wardCode: string) => {
         setSelectedWard(wardCode);
         const w = wards.find(w => w.code.toString() === wardCode);
@@ -235,12 +259,12 @@ export default function CheckoutPage() {
         if (!form.email.trim()) e.email = "Vui lòng nhập email";
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Email không hợp lệ";
         if (!selectedProvince) e.province = "Bạn chưa chọn tỉnh thành";
-        // if (!selectedDistrict) e.district = "Bạn chưa chọn quận huyện";
+        if (!selectedDistrict) e.district = "Bạn chưa chọn quận huyện";
         if (!selectedWard) e.ward = "Bạn chưa chọn phường xã";
         if (cartItems.length === 0) e.cart = "Giỏ hàng trống";
         setErrors(e);
         return Object.keys(e).length === 0;
-    }, [form, selectedProvince, selectedWard, cartItems]);
+    }, [form, selectedProvince, selectedDistrict, selectedWard, cartItems]);
 
     // --- Submit order ---
     const handleSubmit = async () => {
@@ -470,61 +494,61 @@ export default function CheckoutPage() {
                                 </div>
 
                                 {/* Province / District / Ward */}
-                                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    <div>
-                                        <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Tỉnh thành</Label>
-                                        <select
-                                            value={selectedProvince}
-                                            onChange={e => setSelectedProvince(e.target.value)}
-                                            className={cn(
-                                                "w-full mt-2 h-12 px-4 rounded-xl border bg-gray-50 dark:bg-[#1c212c] text-slate-900 dark:text-slate-200 border-gray-200 dark:border-white/10 text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all",
-                                                errors.province && "border-red-400 dark:border-red-500/50"
-                                            )}
-                                        >
-                                            <option value="">Tỉnh / Thành phố</option>
-                                            {provinces.map(p => (
-                                                <option key={p.code} value={p.code}>{p.name}</option>
-                                            ))}
-                                        </select>
-                                        {errors.province && <p className="text-xs font-medium text-red-500 mt-1.5">{errors.province}</p>}
-                                    </div>
-                                    {/* <div>
-                                        <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Quận / Huyện</Label>
-                                        <select
-                                            value={selectedDistrict}
-                                            onChange={e => setSelectedDistrict(e.target.value)}
-                                            disabled={!selectedProvince}
-                                            className={cn(
-                                                "w-full mt-2 h-12 px-4 rounded-xl border bg-gray-50 dark:bg-[#1c212c] text-slate-900 dark:text-slate-200 border-gray-200 dark:border-white/10 text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-                                                errors.district && "border-red-400 dark:border-red-500/50"
-                                            )}
-                                        >
-                                            <option value="">Quận / Huyện</option>
-                                            {districts.map(d => (
-                                                <option key={d.code} value={d.code}>{d.name}</option>
-                                            ))}
-                                        </select>
-                                        {errors.district && <p className="text-xs font-medium text-red-500 mt-1.5">{errors.district}</p>}
-                                    </div> */}
-                                    <div>
-                                        <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Phường xã</Label>
-                                        <select
-                                            value={selectedWard}
-                                            onChange={e => handleWardChange(e.target.value)}
-                                            disabled={!selectedProvince}
-                                            className={cn(
-                                                "w-full mt-2 h-12 px-4 rounded-xl border bg-gray-50 dark:bg-[#1c212c] text-slate-900 dark:text-slate-200 border-gray-200 dark:border-white/10 text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-                                                errors.ward && "border-red-400 dark:border-red-500/50"
-                                            )}
-                                        >
-                                            <option value="">Phường / Xã</option>
-                                            {wards.map(w => (
-                                                <option key={w.code} value={w.code}>{w.name}</option>
-                                            ))}
-                                        </select>
-                                        {errors.ward && <p className="text-xs font-medium text-red-500 mt-1.5">{errors.ward}</p>}
-                                    </div>
-                                </div>
+                                 <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                     <div>
+                                         <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Tỉnh thành</Label>
+                                         <select
+                                             value={selectedProvince}
+                                             onChange={e => setSelectedProvince(e.target.value)}
+                                             className={cn(
+                                                 "w-full mt-2 h-12 px-4 rounded-xl border bg-gray-50 dark:bg-[#1c212c] text-slate-900 dark:text-slate-200 border-gray-200 dark:border-white/10 text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all",
+                                                 errors.province && "border-red-400 dark:border-red-500/50"
+                                             )}
+                                         >
+                                             <option value="">Tỉnh / Thành phố</option>
+                                             {provinces.map(p => (
+                                                 <option key={p.code} value={p.code}>{p.name}</option>
+                                             ))}
+                                         </select>
+                                         {errors.province && <p className="text-xs font-medium text-red-500 mt-1.5">{errors.province}</p>}
+                                     </div>
+                                     <div>
+                                         <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Quận / Huyện</Label>
+                                         <select
+                                             value={selectedDistrict}
+                                             onChange={e => handleDistrictChange(e.target.value)}
+                                             disabled={!selectedProvince}
+                                             className={cn(
+                                                 "w-full mt-2 h-12 px-4 rounded-xl border bg-gray-50 dark:bg-[#1c212c] text-slate-900 dark:text-slate-200 border-gray-200 dark:border-white/10 text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                                                 errors.district && "border-red-400 dark:border-red-500/50"
+                                             )}
+                                         >
+                                             <option value="">Quận / Huyện</option>
+                                             {districts.map(d => (
+                                                 <option key={d.code} value={d.code}>{d.name}</option>
+                                             ))}
+                                         </select>
+                                         {errors.district && <p className="text-xs font-medium text-red-500 mt-1.5">{errors.district}</p>}
+                                     </div>
+                                     <div>
+                                         <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Phường xã</Label>
+                                         <select
+                                             value={selectedWard}
+                                             onChange={e => handleWardChange(e.target.value)}
+                                             disabled={!selectedDistrict}
+                                             className={cn(
+                                                 "w-full mt-2 h-12 px-4 rounded-xl border bg-gray-50 dark:bg-[#1c212c] text-slate-900 dark:text-slate-200 border-gray-200 dark:border-white/10 text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                                                 errors.ward && "border-red-400 dark:border-red-500/50"
+                                             )}
+                                         >
+                                             <option value="">Phường / Xã</option>
+                                             {wards.map(w => (
+                                                 <option key={w.code} value={w.code}>{w.name}</option>
+                                             ))}
+                                         </select>
+                                         {errors.ward && <p className="text-xs font-medium text-red-500 mt-1.5">{errors.ward}</p>}
+                                     </div>
+                                 </div>
 
                                 {/* Notes */}
                                 <div className="md:col-span-2">
