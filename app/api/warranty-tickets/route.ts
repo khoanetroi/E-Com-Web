@@ -41,8 +41,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Strip admin-only AI fields for non-admin users
+  const responseData = isAdmin
+    ? (data || [])
+    : (data || []).map((ticket: any) => {
+        const { ai_diagnosis, ai_temporary_advice, ai_confidence, ai_severity, ai_follow_up_questions, ...rest } = ticket;
+        return rest;
+      });
+
   return NextResponse.json({
-    data: data || [],
+    data: responseData,
     total: count || 0,
     page,
     totalPages: Math.ceil((count || 0) / limit)
@@ -86,6 +94,9 @@ export async function POST(request: Request) {
     ai_confidence: null,
     ai_severity: null,
     ai_follow_up_questions: null,
+    client_ai_diagnosis: null,
+    client_ai_temporary_advice: null,
+    client_ai_confidence: null,
     admin_note: null,
     updated_at: new Date().toISOString(),
   };
@@ -93,16 +104,14 @@ export async function POST(request: Request) {
   if (body.run_ai_diagnosis) {
     try {
       const diagnosis = await analyzeWarrantyTicketWithGemini({
-        // customerName: payload.customer_name || 'Khách hàng',
         productName: payload.product_name,
         issueDescription: payload.issue_description,
+        requesterRole: 'client',
       });
       if (diagnosis) {
-        payload.ai_diagnosis = diagnosis.diagnosis;
-        payload.ai_temporary_advice = diagnosis.temporaryAdvice;
-        payload.ai_confidence = diagnosis.confidence;
-        payload.ai_severity = diagnosis.severity;
-        payload.ai_follow_up_questions = diagnosis.followUpQuestions;
+        payload.client_ai_diagnosis = diagnosis.diagnosis;
+        payload.client_ai_temporary_advice = diagnosis.temporaryAdvice;
+        payload.client_ai_confidence = diagnosis.confidence;
       }
     } catch (e) {
       console.error("AI diagnosis failed during ticket creation:", e);

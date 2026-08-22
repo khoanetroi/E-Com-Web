@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Zap, ArrowRight, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { getBrandLogo } from "@/lib/constants/brands";
 
 /* ─── Types ─── */
 interface SubCategory { id: string; name: string; slug: string; }
@@ -163,11 +164,15 @@ export function CategorySection({
 
         const fetchBrandLogos = async () => {
             if (!pinnedBrandNames || pinnedBrandNames.length === 0) { setBrands([]); return; }
-            const { data: logos } = await supabase.from("brand_logos").select("brand_name, logo_url").in("brand_name", pinnedBrandNames);
-            setBrands(pinnedBrandNames.map(name => {
-                const logo = logos?.find(l => l.brand_name.toLowerCase() === name.toLowerCase());
-                return { name, logoUrl: logo?.logo_url || null };
-            }));
+            try {
+                const { data: logos } = await supabase.from("brand_logos").select("brand_name, logo_url").in("brand_name", pinnedBrandNames);
+                setBrands(pinnedBrandNames.map(name => {
+                    const logo = logos?.find(l => l.brand_name.toLowerCase() === name.toLowerCase());
+                    return { name, logoUrl: logo?.logo_url || getBrandLogo(name) };
+                }));
+            } catch {
+                setBrands(pinnedBrandNames.map(name => ({ name, logoUrl: getBrandLogo(name) })));
+            }
         };
         fetchBrandLogos();
     }, [parentCatId, supabase, pinnedBrandNames]);

@@ -44,10 +44,10 @@ export default function CheckoutPage() {
 
     // Province / District / Ward
     const [provinces, setProvinces] = useState<Province[]>([]);
-    const [districts, setDistricts] = useState<District[]>([]);
+    // const [districts, setDistricts] = useState<District[]>([]);
     const [wards, setWards] = useState<Ward[]>([]);
     const [selectedProvince, setSelectedProvince] = useState("");
-    const [selectedDistrict, setSelectedDistrict] = useState("");
+    // const [selectedDistrict, setSelectedDistrict] = useState("");
     const [selectedWard, setSelectedWard] = useState("");
     const [provinceName, setProvinceName] = useState("");
     const [districtName, setDistrictName] = useState("");
@@ -165,31 +165,31 @@ export default function CheckoutPage() {
 
     // Fetch provinces
     useEffect(() => {
-        fetch("https://provinces.open-api.vn/api/p/")
+        fetch("https://provinces.open-api.vn/api/v2/p/")
             .then(res => res.json())
             .then(data => setProvinces(data))
             .catch(() => { });
     }, []);
 
     // Fetch districts when province selected
-    useEffect(() => {
-        if (!selectedProvince) { setDistricts([]); return; }
-        fetch(`https://provinces.open-api.vn/api/p/${selectedProvince}?depth=2`)
-            .then(res => res.json())
-            .then(data => {
-                setDistricts(data.districts || []);
-                setProvinceName(data.name || "");
-            })
-            .catch(() => { });
-        setSelectedDistrict("");
-        setSelectedWard("");
-        setWards([]);
-    }, [selectedProvince]);
+    // useEffect(() => {
+    //     if (!selectedProvince) { setDistricts([]); return; }
+    //     fetch(`https://provinces.open-api.vn/api/v2/p/${selectedProvince}?depth=2`)
+    //         .then(res => res.json())
+    //         .then(data => {
+    //             setDistricts(data.districts || []);
+    //             setProvinceName(data.name || "");
+    //         })
+    //         .catch(() => { });
+    //     setSelectedDistrict("");
+    //     setSelectedWard("");
+    //     setWards([]);
+    // }, [selectedProvince]);
 
     // Fetch wards when district selected
     useEffect(() => {
-        if (!selectedDistrict) { setWards([]); return; }
-        fetch(`https://provinces.open-api.vn/api/d/${selectedDistrict}?depth=2`)
+        if (!selectedProvince) { setWards([]); return; }
+        fetch(`https://provinces.open-api.vn/api/v2/p/${selectedProvince}?depth=2`)
             .then(res => res.json())
             .then(data => {
                 setWards(data.wards || []);
@@ -197,7 +197,7 @@ export default function CheckoutPage() {
             })
             .catch(() => { });
         setSelectedWard("");
-    }, [selectedDistrict]);
+    }, [selectedProvince]);
 
     // Ward name
     const handleWardChange = (wardCode: string) => {
@@ -235,12 +235,12 @@ export default function CheckoutPage() {
         if (!form.email.trim()) e.email = "Vui lòng nhập email";
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Email không hợp lệ";
         if (!selectedProvince) e.province = "Bạn chưa chọn tỉnh thành";
-        if (!selectedDistrict) e.district = "Bạn chưa chọn quận huyện";
+        // if (!selectedDistrict) e.district = "Bạn chưa chọn quận huyện";
         if (!selectedWard) e.ward = "Bạn chưa chọn phường xã";
         if (cartItems.length === 0) e.cart = "Giỏ hàng trống";
         setErrors(e);
         return Object.keys(e).length === 0;
-    }, [form, selectedProvince, selectedDistrict, selectedWard, cartItems]);
+    }, [form, selectedProvince, selectedWard, cartItems]);
 
     // --- Submit order ---
     const handleSubmit = async () => {
@@ -488,7 +488,7 @@ export default function CheckoutPage() {
                                         </select>
                                         {errors.province && <p className="text-xs font-medium text-red-500 mt-1.5">{errors.province}</p>}
                                     </div>
-                                    <div>
+                                    {/* <div>
                                         <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Quận / Huyện</Label>
                                         <select
                                             value={selectedDistrict}
@@ -505,13 +505,13 @@ export default function CheckoutPage() {
                                             ))}
                                         </select>
                                         {errors.district && <p className="text-xs font-medium text-red-500 mt-1.5">{errors.district}</p>}
-                                    </div>
+                                    </div> */}
                                     <div>
                                         <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Phường xã</Label>
                                         <select
                                             value={selectedWard}
                                             onChange={e => handleWardChange(e.target.value)}
-                                            disabled={!selectedDistrict}
+                                            disabled={!selectedProvince}
                                             className={cn(
                                                 "w-full mt-2 h-12 px-4 rounded-xl border bg-gray-50 dark:bg-[#1c212c] text-slate-900 dark:text-slate-200 border-gray-200 dark:border-white/10 text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
                                                 errors.ward && "border-red-400 dark:border-red-500/50"

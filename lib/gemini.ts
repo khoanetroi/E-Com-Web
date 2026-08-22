@@ -1,45 +1,35 @@
 import type { WarrantyTicketAnalysis } from "@/lib/warranty-ticket";
+import { extractJsonBlock, safeJsonParse } from "./utils/jsonHelper";
 
 const DEFAULT_MODEL = "gemini-1.5-flash";
-
-function safeJsonParse<T>(value: string): T | null {
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return null;
-  }
-}
-
-function extractJsonBlock(rawText: string) {
-  const fenced = rawText.match(/```json\s*([\s\S]*?)\s*```/i);
-  if (fenced?.[1]) return fenced[1];
-
-  const firstBrace = rawText.indexOf("{");
-  const lastBrace = rawText.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    return rawText.slice(firstBrace, lastBrace + 1);
-  }
-
-  return rawText;
-}
 
 export function buildWarrantyTicketPrompt(input: {
   productName?: string | null;
   serialNumber?: string | null;
   issueDescription: string;
+  requesterRole?: 'client' | 'admin';
 }) {
+  const isClient = input.requesterRole === 'client';
+
+  const roleInstruction = isClient
+    ? `Nhiệm vụ: phân tích ticket lỗi do khách hàng mô tả và đưa ra chẩn đoán sơ bộ cùng lời khuyên xử lý tạm thời trực tiếp cho khách hàng. Lời lẽ cần nhẹ nhàng, trấn an, lịch sự và hướng dẫn cách xử lý cơ bản nhất có thể làm tại nhà hoặc gửi bảo hành.`
+    : `Nhiệm vụ: phân tích ticket lỗi do khách hàng mô tả và đưa ra chẩn đoán sơ bộ cùng lời khuyên xử lý tạm thời cho quản trị viên. Chẩn đoán và lời khuyên cần chi tiết để kỹ thuật viên hiểu rõ nhất`;
+
   return [
-    "Bạn là trợ lý kỹ thuật hậu mãi cho hệ thống thương mại điện tử thiết bị điện / công nghiệp Telectric.",
-    `Nhiệm vụ: phân tích ticket lỗi do khách hàng mô tả và đưa ra chẩn đoán sơ bộ cùng lời khuyên xử lý tạm thời cho quản trị viên.
-    Quan trọng: luôn luôn dựa vào tên sản phẩm, mô tả lỗi của sản phẩm để đưa ra chẩn đoán và lời khuyên chính xác nhất, không trả lời chung chung.
-    `,
+    "Bạn là trợ lý kỹ thuật hậu mãi cho hệ thống thương mại điện tử thiết bị điện công nghiệp Telectric.",
+    roleInstruction,
+    isClient
+      ? "Quan trọng: luôn luôn dựa vào tên sản phẩm, mô tả lỗi của sản phẩm để đưa ra chẩn đoán cơ bản, nhẹ nhàng để tránh người dùng cảm thấy tiêu cực về sản phẩm, lời khuyên cần dễ hiểu với người dùng, không nên dùng quá nhiều thuật ngữ kỹ thuật"
+      : "Quan trọng: luôn luôn dựa vào tên sản phẩm, mô tả lỗi của sản phẩm để đưa ra chẩn đoán và lời khuyên chính xác nhất, không trả lời chung chung.",
     "Không tư vấn bán hàng, không gợi ý sản phẩm, không suy diễn ngoài nội dung mô tả của ticket.",
     "Nếu dữ liệu chưa đủ, nêu rõ giới hạn thông tin; không khẳng định chắc chắn hoặc suy diễn ngoài ticket.",
     "Trả về đúng JSON với các khóa: diagnosis, temporaryAdvice, severity, confidence, followUpQuestions.",
     "severity chỉ được là low, medium hoặc high.",
     "confidence là số từ 0 đến 1.",
     "followUpQuestions là mảng câu hỏi cần hỏi thêm nếu còn thiếu thông tin.",
-    "Ngôn ngữ phản hồi phải là tiếng Việt, có dấu, ngắn gọn, thực dụng, phù hợp cho admin xem nhanh.",
+    isClient
+      ? "Ngôn ngữ phản hồi phải là tiếng Việt, có dấu, nhẹ nhàng, thân thiện, dễ hiểu cho người dùng cuối."
+      : "Ngôn ngữ phản hồi phải là tiếng Việt, có dấu, ngắn gọn, thực dụng, phù hợp cho admin và kỹ thuật viên xem và xử lý.",
     "",
     `Thông tin ticket:\n- Sản phẩm: ${input.productName || "Không có"}\n- Serial: ${input.serialNumber || "Không có"}\n- Mô tả lỗi: ${input.issueDescription}`,
   ].join("\n");
@@ -106,8 +96,8 @@ function generateFallbackElectricalAnalysis(input: {
     followUpQuestions.push("Tổng công suất các thiết bị đang đấu nối sau CB là bao nhiêu Watt?");
     followUpQuestions.push("CB nhảy ngay khi vừa đóng lên hay sau khi chạy tải một khoảng thời gian?");
   }
-  // Phân tích theo nhóm Thiết bị chiếu sáng / Đèn LED / Nguồn xung
-  else if (prod.includes("đèn") || prod.includes("led") || prod.includes("nguồn") || prod.includes("driver") || prod.includes("adapter")) {
+  // Phân tích theo nhóm Đèn chiếu sáng, LED, Driver
+  else if (prod.includes("đèn") || prod.includes("led") || prod.includes("driver") || prod.includes("nguồn")) {
     if (desc.includes("chớp") || desc.includes("nhấp nháy") || desc.includes("mờ")) {
       severity = "low";
       confidence = 0.91;
@@ -116,29 +106,38 @@ function generateFallbackElectricalAnalysis(input: {
       followUpQuestions.push("Đèn chớp liên tục hay lúc sáng lúc tắt theo chu kỳ?");
       followUpQuestions.push("Điện áp cấp vào bộ nguồn có ổn định 220V không?");
     } else {
-      severity = "medium";
-      confidence = 0.87;
-      diagnosis = "Đứt mạch chip LED nối tiếp hoặc hỏng cuộn biến áp của bộ chuyển đổi nguồn.";
-      temporaryAdvice = "Kiểm tra đo thông mạch và ngắt cấp nguồn cho cụm đèn.";
-      followUpQuestions.push("Các bóng đèn khác trên cùng nhánh có hoạt động bình thường không?");
+      severity = "low";
+      confidence = 0.86;
+      diagnosis = "Đứt mạch chip LED nối tiếp hoặc hỏng hoàn toàn bộ nguồn chuyển đổi AC-DC.";
+      temporaryAdvice = "Dùng bút thử điện kiểm tra nguồn 220V cấp vào Driver. Nếu có điện vào nhưng đèn không sáng thì thay Driver mới.";
+      followUpQuestions.push("Có bao nhiêu bóng/mô-đun trong hệ thống bị tắt cùng lúc?");
     }
   }
-  // Phân tích chung
-  else {
-    if (desc.includes("không lên") || desc.includes("mất nguồn") || desc.includes("không nguồn")) {
+  // Phân tích theo nhóm Thiết bị đo điện (Đồng hồ VOM, Ampe kìm, Megomet)
+  else if (prod.includes("đồng hồ") || prod.includes("ampe") || prod.includes("vom") || prod.includes("kẹp") || prod.includes("fluke") || prod.includes("hioki") || prod.includes("sanwa")) {
+    if (desc.includes("sai") || desc.includes("nhảy số") || desc.includes("lệch")) {
       severity = "medium";
-      confidence = 0.86;
-      diagnosis = `Đứt cầu chì bảo vệ đầu vào, lỏng chân cắm hoặc hỏng bo mạch nguồn sơ cấp của ${prod || "thiết bị"}.`;
-      temporaryAdvice = "Kiểm tra ổ cắm, dây nguồn và thử đổi sang ổ điện khác. Không tự ý bẻ gãy tem bảo hành.";
-      followUpQuestions.push("Dây nguồn của thiết bị có dấu hiệu bị gấp khúc, dập nát hay đứt ngầm không?");
-      followUpQuestions.push("Khi cắm nguồn có nghe tiếng tạch hoặc có tia lửa nhỏ ở ổ cắm không?");
+      confidence = 0.88;
+      diagnosis = "Pin nguồn yếu dưới mức chuẩn hoặc que đo bị tăng nội trở tiếp xúc; cảm biến Hall/mạch ADC bị lệch chuẩn hiệu chuẩn (Calibration).";
+      temporaryAdvice = "Thay pin mới chất lượng cao (Alkaline). Vệ sinh sạch tiếp điểm que đo bằng cồn kỹ thuật.";
+      followUpQuestions.push("Biểu tượng cảnh báo pin yếu (Low Battery) có hiển thị trên màn hình không?");
+      followUpQuestions.push("Khi chập hai que đo ở thang đo thông mạch/điện trở thì giá trị hiển thị là bao nhiêu?");
     } else {
-      severity = "low";
-      confidence = 0.82;
-      diagnosis = `Ghi nhận lỗi: "${input.issueDescription}". Nghi ngờ sai lệch thông số cài đặt hoặc tiếp xúc cơ điện không ổn định.`;
-      temporaryAdvice = "Tắt nguồn, vệ sinh bụi bẩn ở các khe tản nhiệt và kiểm tra lại hướng dẫn sử dụng sản phẩm.";
-      followUpQuestions.push("Sự cố này xảy ra từ khi nào và lặp lại với tần suất như thế nào?");
+      severity = "medium";
+      confidence = 0.87;
+      diagnosis = "Đứt cầu chì bảo vệ quá dòng (Fast-blow fuse) bên trong thiết bị đo do vô tình đo nhầm thang điện áp khi cắm que ở cổng mA/A.";
+      temporaryAdvice = "Tháo nắp pin kiểm tra cầu chì bảo vệ. Thay đúng chủng loại và trị số cầu chì khuyến cáo của nhà sản xuất.";
+      followUpQuestions.push("Đồng hồ có còn sáng màn hình hoặc phát tiếng bip khi bật nguồn không?");
     }
+  }
+  // Trường hợp thiết bị khác hoặc mô tả chung
+  else {
+    severity = "medium";
+    confidence = 0.82;
+    diagnosis = `Phát hiện bất thường cơ điện tại ${input.productName || "thiết bị"}. Triệu chứng: "${input.issueDescription}". Khả năng phát sinh từ bộ cấp nguồn hoặc linh kiện chấp hành.`;
+    temporaryAdvice = "Ngắt thiết bị khỏi nguồn điện chính. Kiểm tra trực quan dây dẫn, giắc cắm và gửi đến trung tâm bảo hành TELECTRIC.";
+    followUpQuestions.push("Sự cố xảy ra đột ngột hay có dấu hiệu suy giảm hiệu năng từ trước?");
+    followUpQuestions.push("Môi trường làm việc của thiết bị có bị ẩm ướt, nhiều bụi hoặc nhiệt độ cao không?");
   }
 
   return {
@@ -146,7 +145,7 @@ function generateFallbackElectricalAnalysis(input: {
     temporaryAdvice,
     severity,
     confidence,
-    followUpQuestions: followUpQuestions.slice(0, 4),
+    followUpQuestions
   };
 }
 
@@ -154,47 +153,43 @@ export async function analyzeWarrantyTicketWithGemini(input: {
   productName?: string | null;
   serialNumber?: string | null;
   issueDescription: string;
+  requesterRole?: 'client' | 'admin';
 }): Promise<WarrantyTicketAnalysis> {
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
 
-  // Nếu không có API key hoặc key ở dạng placeholder/sai định dạng Google AI Studio, kích hoạt fallback engine
-  if (!apiKey || apiKey.startsWith("AQ.") || apiKey === "your-gemini-api-key") {
-    console.warn("[Gemini AI] Using Intelligent Fallback Diagnostic Engine (No valid Gemini API key configured)");
+  // Nếu không có API Key hoặc key là placeholder/invalid format -> Chạy Fallback Engine
+  if (!apiKey || apiKey.length < 20 || apiKey.startsWith("YOUR_") || apiKey.startsWith("AQ.")) {
+    console.log("[Gemini AI] Using Intelligent Fallback Diagnostic Engine (No valid Gemini API key configured)");
     return generateFallbackElectricalAnalysis(input);
   }
 
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const prompt = buildWarrantyTicketPrompt(input);
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
+  const timeout = setTimeout(() => controller.abort(), 20000);
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            maxOutputTokens: 2048,
-            responseMimeType: "application/json",
-            responseJsonSchema: {
-              type: "object",
-              properties: {
-                diagnosis: { type: "string" },
-                temporaryAdvice: { type: "string" },
-                severity: { type: "string", enum: ["low", "medium", "high"] },
-                confidence: { type: "number" },
-                followUpQuestions: { type: "array", items: { type: "string" } },
-              },
-              required: ["diagnosis", "temporaryAdvice", "severity", "confidence", "followUpQuestions"],
-            },
-          },
-        }),
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: "application/json",
+        },
+      }),
+      signal: controller.signal,
+    });
 
     if (!response.ok) {
       console.warn(`[Gemini AI] API responded with status ${response.status}. Falling back to Electrical Diagnostic Engine.`);

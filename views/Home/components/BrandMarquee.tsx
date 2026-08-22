@@ -1,67 +1,30 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Zap } from "lucide-react";
-
-interface BrandLogo {
-    brand_name: string;
-    logo_url?: string | null;
-}
-
-const DEFAULT_BRANDS: BrandLogo[] = [
-    { brand_name: "Panasonic" },
-    { brand_name: "Schneider Electric" },
-    { brand_name: "Philips" },
-    { brand_name: "Mitsubishi Electric" },
-    { brand_name: "LS Electric" },
-    { brand_name: "Cadivi" },
-    { brand_name: "Sino - Vanlock" },
-    { brand_name: "Paragon" },
-    { brand_name: "Senko" },
-    { brand_name: "Rạng Đông" },
-];
+import { BRAND_LIST, BrandItem } from "@/lib/constants/brands";
+import { createClient } from "@/lib/supabase/client";
 
 export function BrandMarquee() {
     const supabase = useMemo(() => createClient(), []);
-    const [brands, setBrands] = useState<BrandLogo[]>(DEFAULT_BRANDS);
+    const [brands, setBrands] = useState<BrandItem[]>(BRAND_LIST);
 
     useEffect(() => {
-        const loadBrands = async () => {
+        const fetchBrands = async () => {
             try {
-                // Ưu tiên lấy từ bảng brand_logos (có logo ảnh)
-                const { data: logoData } = await supabase
+                const { data } = await supabase
                     .from("brand_logos")
-                    .select("brand_name, logo_url")
-                    .not("logo_url", "is", null)
+                    .select("id, brand_name, logo_url, created_at")
                     .order("brand_name");
-
-                if (logoData && logoData.length > 0) {
-                    setBrands(logoData);
-                    return;
-                }
-
-                // Fallback 1: Lấy danh sách hãng từ bảng products
-                const { data: productData } = await supabase
-                    .from("products")
-                    .select("brand")
-                    .not("brand", "is", null);
-
-                if (productData && productData.length > 0) {
-                    const uniqueBrands = Array.from(new Set(productData.map(p => p.brand).filter(Boolean)))
-                        .map(name => ({ brand_name: name as string, logo_url: null }));
-                    
-                    if (uniqueBrands.length > 0) {
-                        setBrands(uniqueBrands);
-                        return;
-                    }
+                if (data && data.length > 0) {
+                    setBrands(data);
                 }
             } catch {
-                // Giữ default brands
+                // Keep default BRAND_LIST
             }
         };
-        loadBrands();
+        fetchBrands();
     }, [supabase]);
 
     if (brands.length === 0) return null;

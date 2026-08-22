@@ -18,6 +18,7 @@ import imageCompression from "browser-image-compression";
 import { sortAttributes } from "@/lib/utils/attributes";
 import { generateSlug } from "@/lib/utils/slugify";
 import { ORIGIN_LIST } from "@/lib/constants/origins";
+import { BRAND_LIST, BrandItem, getBrandLogo } from "@/lib/constants/brands";
 
 const productSchema = z.object({
     name: z.string().min(5, "Tên sản phẩm ít nhất 5 ký tự").max(255),
@@ -77,12 +78,6 @@ interface CategoryOption {
     parent_id: string | null;
 }
 
-interface BrandLogo {
-    id: string;
-    brand_name: string;
-    logo_url: string | null;
-}
-
 export default function ProductForm({ initialData }: { initialData?: any }) {
     const supabase = createClient();
     const { toast } = useToast();
@@ -98,7 +93,8 @@ export default function ProductForm({ initialData }: { initialData?: any }) {
     const [categories, setCategories] = useState<CategoryOption[]>([]);
 
     // Brand logos
-    const [brandLogos, setBrandLogos] = useState<BrandLogo[]>([]);
+    const [brandLogos, setBrandLogos] = useState<BrandItem[]>(BRAND_LIST);
+    const [brandSearch, setBrandSearch] = useState("");
     const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
     const brandDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -150,14 +146,22 @@ export default function ProductForm({ initialData }: { initialData?: any }) {
         fetchCategories();
     }, [supabase]);
 
-    // Fetch brand logos
+    // Fetch brand logos (Supabase + fallback to BRAND_LIST)
     useEffect(() => {
         const fetchBrandLogos = async () => {
-            const { data } = await supabase
-                .from("brand_logos")
-                .select("id, brand_name, logo_url")
-                .order("brand_name");
-            setBrandLogos(data || []);
+            try {
+                const { data } = await supabase
+                    .from("brand_logos")
+                    .select("id, brand_name, logo_url, created_at")
+                    .order("brand_name");
+                if (data && data.length > 0) {
+                    setBrandLogos(data);
+                } else {
+                    setBrandLogos(BRAND_LIST);
+                }
+            } catch {
+                setBrandLogos(BRAND_LIST);
+            }
         };
         fetchBrandLogos();
     }, [supabase]);
@@ -657,57 +661,106 @@ export default function ProductForm({ initialData }: { initialData?: any }) {
                                             control={form.control}
                                             name="brand"
                                             render={({ field }) => {
-                                                const selectedLogo = brandLogos.find(b => b.brand_name === field.value);
+                                                const selectedLogo = brandLogos.find(b => b.brand_name.toLowerCase() === (field.value || "").toLowerCase());
+                                                const filteredBrands = brandLogos.filter(b => {
+                                                    if (!brandSearch.trim()) return true;
+                                                    return b.brand_name.toLowerCase().includes(brandSearch.toLowerCase().trim());
+                                                });
+
                                                 return (
                                                     <FormItem>
                                                         <FormLabel>Thương hiệu</FormLabel>
                                                         <div className="relative" ref={brandDropdownRef}>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setBrandDropdownOpen(prev => !prev)}
+                                                                onClick={() => {
+                                                                    setBrandDropdownOpen(prev => !prev);
+                                                                    setBrandSearch("");
+                                                                }}
                                                                 className="w-full h-10 px-3 flex items-center gap-2 rounded-md border border-slate-200 dark:border-white/5 bg-white dark:bg-[#0f1219] hover:border-orange-400 transition-colors text-left text-sm"
                                                             >
                                                                 {selectedLogo?.logo_url ? (
-                                                                    <img src={selectedLogo.logo_url} alt={selectedLogo.brand_name} className="h-5 w-auto max-w-[28px] object-contain" />
-                                                                ) : null}
-                                                                <span className="truncate flex-1 text-slate-700 dark:text-slate-200">{field.value || "Chọn thương hiệu"}</span>
-                                                                <svg className={`h-4 w-4 text-slate-400 transition-transform ${brandDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                                    <img src={selectedLogo.logo_url} alt={selectedLogo.brand_name} className="h-5 w-auto max-w-[28px] object-contain rounded bg-white p-0.5" />
+                                                                ) : field.value && field.value !== "NoBrand" ? (
+                                                                    <div className="h-5 w-5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center text-[10px] font-bold">
+                                                                        {field.value.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="h-5 w-5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center text-[9px]">
+                                                                        N/A
+                                                                    </div>
+                                                                )}
+                                                                <span className="truncate flex-1 text-slate-700 dark:text-slate-200 font-medium">
+                                                                    {field.value || "Chọn thương hiệu"}
+                                                                </span>
+                                                                <svg className={`h-4 w-4 text-slate-400 transition-transform ${brandDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                </svg>
                                                             </button>
 
                                                             {brandDropdownOpen && (
-                                                                <div className="absolute z-50 top-full left-0 mt-1 w-[340px] max-h-[320px] overflow-y-auto bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-white/10 rounded-lg shadow-xl p-2">
-                                                                    {/* NoBrand option */}
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => { field.onChange("NoBrand"); setBrandDropdownOpen(false); }}
-                                                                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm mb-1 transition-colors ${field.value === "NoBrand" ? "bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-600" : "hover:bg-slate-50 dark:hover:bg-white/5"
-                                                                            }`}
-                                                                    >
-                                                                        <div className="h-8 w-8 rounded bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px] text-slate-400">N/A</div>
-                                                                        <span className="text-slate-600 dark:text-slate-300">NoBrand</span>
-                                                                    </button>
+                                                                <div className="absolute z-50 top-full left-0 mt-1 w-[340px] max-h-[380px] overflow-hidden flex flex-col bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-white/10 rounded-lg shadow-xl p-2">
+                                                                    {/* Search box */}
+                                                                    <div className="mb-2">
+                                                                        <Input
+                                                                            value={brandSearch}
+                                                                            onChange={(e) => setBrandSearch(e.target.value)}
+                                                                            placeholder="Tìm hoặc nhập thương hiệu..."
+                                                                            className="h-8 text-xs bg-slate-50 dark:bg-[#0f1219] border-slate-200 dark:border-white/10"
+                                                                            autoFocus
+                                                                        />
+                                                                    </div>
 
-                                                                    <div className="grid grid-cols-2 gap-1.5">
-                                                                        {brandLogos.map((brand) => (
+                                                                    <div className="overflow-y-auto max-h-[300px] space-y-1 pr-1">
+                                                                        {/* NoBrand option */}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => { field.onChange("NoBrand"); setBrandDropdownOpen(false); setBrandSearch(""); }}
+                                                                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${field.value === "NoBrand" ? "bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-600" : "hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent"
+                                                                                }`}
+                                                                        >
+                                                                            <div className="h-7 w-7 rounded bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px] text-slate-400 font-semibold">N/A</div>
+                                                                            <span className="text-slate-600 dark:text-slate-300 font-medium">NoBrand</span>
+                                                                        </button>
+
+                                                                        {/* Custom brand option if search doesn't match exactly */}
+                                                                        {brandSearch.trim() && !brandLogos.some(b => b.brand_name.toLowerCase() === brandSearch.trim().toLowerCase()) && (
                                                                             <button
-                                                                                key={brand.id}
                                                                                 type="button"
-                                                                                onClick={() => { field.onChange(brand.brand_name); setBrandDropdownOpen(false); }}
-                                                                                className={`flex items-center gap-2 px-2.5 py-2 rounded-md text-sm transition-all ${field.value === brand.brand_name
-                                                                                    ? "bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-600 shadow-sm"
-                                                                                    : "border border-transparent hover:bg-slate-50 dark:hover:bg-white/5 hover:border-slate-200 dark:hover:border-white/10"
-                                                                                    }`}
+                                                                                onClick={() => { field.onChange(brandSearch.trim().toUpperCase()); setBrandDropdownOpen(false); setBrandSearch(""); }}
+                                                                                className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs text-orange-600 dark:text-orange-400 bg-orange-50/60 dark:bg-orange-900/10 hover:bg-orange-100 dark:hover:bg-orange-900/30 border border-dashed border-orange-300 dark:border-orange-600 transition-colors text-left"
                                                                             >
-                                                                                {brand.logo_url ? (
-                                                                                    <img src={brand.logo_url} alt={brand.brand_name} className="h-7 w-7 object-contain rounded flex-shrink-0" />
-                                                                                ) : (
-                                                                                    <div className="h-7 w-7 rounded bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[9px] font-bold text-slate-400 flex-shrink-0">
-                                                                                        {brand.brand_name.charAt(0)}
-                                                                                    </div>
-                                                                                )}
-                                                                                <span className="truncate text-xs text-slate-700 dark:text-slate-300">{brand.brand_name}</span>
+                                                                                <span>+ Dùng thương hiệu: <strong>{brandSearch.trim().toUpperCase()}</strong></span>
                                                                             </button>
-                                                                        ))}
+                                                                        )}
+
+                                                                        {/* Brands grid */}
+                                                                        <div className="grid grid-cols-2 gap-1.5 pt-1">
+                                                                            {filteredBrands.map((brand) => (
+                                                                                <button
+                                                                                    key={brand.id}
+                                                                                    type="button"
+                                                                                    onClick={() => { field.onChange(brand.brand_name); setBrandDropdownOpen(false); setBrandSearch(""); }}
+                                                                                    className={`flex items-center gap-2 px-2.5 py-2 rounded-md text-sm transition-all text-left ${field.value === brand.brand_name
+                                                                                        ? "bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-600 shadow-sm"
+                                                                                        : "border border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 hover:border-slate-300 dark:hover:border-white/20"
+                                                                                        }`}
+                                                                                >
+                                                                                    {brand.logo_url ? (
+                                                                                        <img src={brand.logo_url} alt={brand.brand_name} className="h-7 w-7 object-contain rounded flex-shrink-0 bg-white p-0.5" />
+                                                                                    ) : (
+                                                                                        <div className="h-7 w-7 rounded bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[9px] font-bold text-slate-400 flex-shrink-0">
+                                                                                            {brand.brand_name.charAt(0)}
+                                                                                        </div>
+                                                                                    )}
+                                                                                    <span className="truncate text-xs font-medium text-slate-700 dark:text-slate-300">{brand.brand_name}</span>
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+
+                                                                        {filteredBrands.length === 0 && !brandSearch.trim() && (
+                                                                            <div className="text-center py-4 text-xs text-slate-400">Không có thương hiệu nào</div>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             )}

@@ -20,6 +20,7 @@ import {
     Clock,
     CheckCircle2,
     XCircle,
+    X,
     Truck,
     RefreshCcw,
     AlertCircle,
@@ -27,7 +28,10 @@ import {
     Activity,
     BarChart3,
     Ticket,
+    Flame,
+    ShieldAlert,
 } from "lucide-react";
+import DefectRateAnalytics from "@/components/admin/DefectRateAnalytics";
 
 // ========================
 // TYPES
@@ -42,8 +46,10 @@ interface DashboardStats {
     totalRevenue: number;
     totalProducts: number;
     totalUsers: number;
+    totalNews: number;
     totalTickets: number;
-    pendingTickets: number;
+    unresolvedTickets: number;
+    pendingTickets?: number;
     recentOrders: RecentOrder[];
 }
 
@@ -61,9 +67,116 @@ interface RecentOrder {
 const formatCurrency = (value: number) =>
     new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
 
+const formatCurrencyAbbr = (value: number) => {
+    if (value >= 1000000) {
+        return (value / 1000000).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + 'M ₫';
+    }
+    if (value >= 1000) {
+        return (value / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + 'k ₫';
+    }
+    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
+};
+
 const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+};
+
+interface RevenueBucket {
+    label: string;
+    dateKey: string;
+    revenue: number;
+    orderCount: number;
+}
+
+const getMondayOfDate = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(d.getFullYear(), d.getMonth(), diff);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+};
+
+const processRevenueData = (orders: { total_amount: number; created_at: string }[], filterType: 'day' | 'week' | 'month'): RevenueBucket[] => {
+    const now = new Date();
+    const result: RevenueBucket[] = [];
+
+    if (filterType === 'day') {
+        // Last 15 days
+        for (let i = 14; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(now.getDate() - i);
+            const dateKey = d.toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+            result.push({ label, dateKey, revenue: 0, orderCount: 0 });
+        }
+
+        orders.forEach(order => {
+            if (!order.created_at) return;
+            const od = new Date(order.created_at);
+            const key = od.toLocaleDateString('en-CA');
+            const bucket = result.find(r => r.dateKey === key);
+            if (bucket) {
+                bucket.revenue += order.total_amount || 0;
+                bucket.orderCount += 1;
+            }
+        });
+    } else if (filterType === 'week') {
+        // Last 8 weeks
+        for (let i = 7; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(now.getDate() - i * 7);
+            const monday = getMondayOfDate(d);
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            sunday.setHours(23, 59, 59, 999);
+            
+            const dateKey = monday.toLocaleDateString('en-CA');
+            const monStr = monday.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+            const sunStr = sunday.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+            const label = `${monStr} - ${sunStr}`;
+            result.push({ label, dateKey, revenue: 0, orderCount: 0 });
+        }
+
+        orders.forEach(order => {
+            if (!order.created_at) return;
+            const od = new Date(order.created_at);
+            const oTime = od.getTime();
+            result.forEach(bucket => {
+                const bMonday = new Date(bucket.dateKey);
+                bMonday.setHours(0, 0, 0, 0);
+                const bSunday = new Date(bMonday);
+                bSunday.setDate(bMonday.getDate() + 7);
+                
+                if (oTime >= bMonday.getTime() && oTime < bSunday.getTime()) {
+                    bucket.revenue += order.total_amount || 0;
+                    bucket.orderCount += 1;
+                }
+            });
+        });
+    } else if (filterType === 'month') {
+        // Last 6 months
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const label = `Tháng ${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+            result.push({ label, dateKey, revenue: 0, orderCount: 0 });
+        }
+
+        orders.forEach(order => {
+            if (!order.created_at) return;
+            const od = new Date(order.created_at);
+            const key = `${od.getFullYear()}-${String(od.getMonth() + 1).padStart(2, '0')}`;
+            const bucket = result.find(r => r.dateKey === key);
+            if (bucket) {
+                bucket.revenue += order.total_amount || 0;
+                bucket.orderCount += 1;
+            }
+        });
+    }
+
+    return result;
 };
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -84,10 +197,22 @@ interface StatCardProps {
     gradient: string;
     trend?: { value: number; positive: boolean };
     subtitle?: string;
+    onClick?: () => void;
+    clickable?: boolean;
+    isActive?: boolean;
 }
 
-const StatCard = ({ title, value, icon, gradient, trend, subtitle }: StatCardProps) => (
-    <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-[#1e2330] border border-slate-100 dark:border-white/5 p-6 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 group">
+const StatCard = ({ title, value, icon, gradient, trend, subtitle, onClick, clickable, isActive }: StatCardProps) => (
+    <div 
+        onClick={onClick}
+        className={`relative overflow-hidden rounded-2xl bg-white dark:bg-[#1e2330] border p-6 shadow-sm transition-all duration-300 group ${
+            clickable ? "cursor-pointer hover:shadow-lg hover:-translate-y-0.5" : ""
+        } ${
+            isActive 
+                ? "border-emerald-500 ring-2 ring-emerald-500/20 dark:border-emerald-500 dark:ring-emerald-500/10" 
+                : "border-slate-100 dark:border-white/5"
+        }`}
+    >
         {/* Gradient blob */}
         <div className={`absolute -right-6 -top-6 w-28 h-28 rounded-full opacity-10 group-hover:opacity-15 transition-opacity ${gradient}`} />
 
@@ -277,10 +402,47 @@ export default function AdminDashboard() {
         totalRevenue: 0,
         totalProducts: 0,
         totalUsers: 0,
+        totalNews: 0,
         totalTickets: 0,
+        unresolvedTickets: 0,
         pendingTickets: 0,
         recentOrders: [],
     });
+
+    const [deliveredOrders, setDeliveredOrders] = useState<{ total_amount: number; created_at: string }[]>([]);
+    const [showRevenueDetail, setShowRevenueDetail] = useState(false);
+    const [showDefectDetail, setShowDefectDetail] = useState(false);
+    const [timeFilter, setTimeFilter] = useState<'day' | 'week' | 'month'>('day');
+    const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+    const activeRevenueData = useMemo(() => {
+        return processRevenueData(deliveredOrders, timeFilter);
+    }, [deliveredOrders, timeFilter]);
+
+    const { yMax, ticks } = useMemo(() => {
+        const maxVal = Math.max(...activeRevenueData.map(d => d.revenue), 0);
+        
+        if (maxVal <= 0) return { yMax: 1000000, ticks: [1000000, 750000, 500000, 250000, 0] };
+        
+        const log10 = Math.log10(maxVal);
+        const magnitude = Math.pow(10, Math.floor(log10));
+        
+        let roundedMax = Math.ceil(maxVal / (magnitude / 2)) * (magnitude / 2);
+        if (roundedMax === maxVal) roundedMax += magnitude;
+        if (roundedMax < maxVal) roundedMax = maxVal;
+        
+        const generatedTicks = [roundedMax, roundedMax * 0.75, roundedMax * 0.5, roundedMax * 0.25, 0];
+        return { yMax: roundedMax, ticks: generatedTicks };
+    }, [activeRevenueData]);
+
+    const summaryStats = useMemo(() => {
+        const total = activeRevenueData.reduce((sum, item) => sum + item.revenue, 0);
+        const ordersCount = activeRevenueData.reduce((sum, item) => sum + item.orderCount, 0);
+        const avgPeriod = total / (activeRevenueData.length || 1);
+        const avgOrder = ordersCount > 0 ? total / ordersCount : 0;
+        return { total, ordersCount, avgPeriod, avgOrder };
+    }, [activeRevenueData]);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -292,7 +454,6 @@ export default function AdminDashboard() {
                     productsRes,
                     usersRes,
                     ticketsRes,
-                    pendingTicketsRes,
                     pendingRes,
                     processingRes,
                     shippedRes,
@@ -301,11 +462,10 @@ export default function AdminDashboard() {
                     recentRes,
                 ] = await Promise.all([
                     supabase.from("orders").select("*", { count: "exact", head: true }),
-                    supabase.from("orders").select("total_amount").eq("status", "delivered"),
+                    supabase.from("orders").select("total_amount, created_at").eq("status", "delivered"),
                     supabase.from("products").select("*", { count: "exact", head: true }),
                     supabase.from("profiles").select("*", { count: "exact", head: true }),
-                    supabase.from("warranty_tickets").select("*", { count: "exact", head: true }),
-                    supabase.from("warranty_tickets").select("*", { count: "exact", head: true }).in("status", ["received", "processing"]),
+                    supabase.from("warranty_tickets").select("id, status"),
                     supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "pending"),
                     supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "processing"),
                     supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "shipped"),
@@ -318,7 +478,14 @@ export default function AdminDashboard() {
                         .limit(6),
                 ]);
 
-                const totalRevenue = (revenueRes.data || []).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
+                const deliveredData = revenueRes.data || [];
+                const totalRevenue = deliveredData.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
+
+                const ticketList = (ticketsRes.data || []) as Array<{ id: string; status?: string }>;
+                const totalTickets = ticketList.length;
+                const unresolvedTickets = ticketList.filter(
+                    (t) => t.status !== "resolved" && t.status !== "closed"
+                ).length;
 
                 setStats({
                     totalOrders: ordersRes.count || 0,
@@ -330,10 +497,13 @@ export default function AdminDashboard() {
                     totalRevenue,
                     totalProducts: productsRes.count || 0,
                     totalUsers: usersRes.count || 0,
-                    totalTickets: ticketsRes.count || 0,
-                    pendingTickets: pendingTicketsRes.count || 0,
+                    totalNews: 0,
+                    totalTickets,
+                    unresolvedTickets,
+                    pendingTickets: unresolvedTickets,
                     recentOrders: recentRes.data || [],
                 });
+                setDeliveredOrders(deliveredData);
             } catch (err) {
                 console.error("Dashboard fetch error:", err);
             } finally {
@@ -357,7 +527,20 @@ export default function AdminDashboard() {
             value: loading ? "—" : formatCurrency(stats.totalRevenue),
             icon: <DollarSign size={22} />,
             gradient: "bg-gradient-to-br from-emerald-400 to-teal-600",
-            subtitle: `Từ ${stats.deliveredOrders} đơn đã giao`,
+            subtitle: loading ? "Đang tải dữ liệu..." : `Từ ${stats.deliveredOrders} đơn đã giao • Nhấp để xem`,
+            onClick: () => setShowRevenueDetail(!showRevenueDetail),
+            clickable: true,
+            isActive: showRevenueDetail,
+        },
+        {
+            title: "Ticket lỗi",
+            value: loading ? "—" : `${stats.totalTickets} ticket`,
+            icon: <Flame size={22} />,
+            gradient: "bg-gradient-to-br from-rose-500 to-red-600",
+            subtitle: loading ? "Đang tải dữ liệu..." : `${stats.unresolvedTickets} chưa xử lý • Nhấp để xem biểu đồ`,
+            onClick: () => setShowDefectDetail(!showDefectDetail),
+            clickable: true,
+            isActive: showDefectDetail,
         },
         {
             title: "Sản phẩm",
@@ -391,6 +574,14 @@ export default function AdminDashboard() {
             description: "Quản lý & cập nhật đơn hàng",
             color: "bg-gradient-to-br from-orange-400 to-orange-600",
             badge: stats.pendingOrders,
+        },
+        {
+            href: "/admin/warranty-tickets",
+            icon: <ShieldAlert size={20} />,
+            label: "Ticket lỗi & Bảo hành",
+            description: "Chẩn đoán AI & xử lý ticket",
+            color: "bg-gradient-to-br from-rose-500 to-red-600",
+            badge: stats.unresolvedTickets,
         },
         {
             href: "/admin/products",
@@ -432,6 +623,14 @@ export default function AdminDashboard() {
             color: "bg-gradient-to-br from-emerald-400 to-green-600",
             badge: 0,
         },
+        {
+            href: "/admin/warranty-check",
+            icon: <SearchCheck size={20} />,
+            label: "Tra cứu bảo hành",
+            description: "Kiểm tra tình trạng bảo hành",
+            color: "bg-gradient-to-br from-sky-400 to-blue-600",
+            badge: 0,
+        },
     ];
 
     return (
@@ -453,11 +652,326 @@ export default function AdminDashboard() {
             </div>
 
             {/* Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 {statCards.map((card, idx) => (
                     <StatCard key={idx} {...card} />
                 ))}
             </div>
+
+            {/* Defect Rate Details Panel (Click-to-Toggle) */}
+            {showDefectDetail && (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-300 rounded-2xl bg-white dark:bg-[#1e2330] border border-slate-100 dark:border-white/5 p-6 shadow-sm">
+                    <DefectRateAnalytics onClose={() => setShowDefectDetail(false)} />
+                </div>
+            )}
+
+            {/* Revenue Details Panel */}
+            {showRevenueDetail && (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-300 rounded-2xl bg-white dark:bg-[#1e2330] border border-slate-100 dark:border-white/5 p-6 shadow-sm space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
+                        <div>
+                            <h3 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2 text-base">
+                                <DollarSign size={18} className="text-emerald-500" />
+                                Chi tiết doanh thu (đã giao)
+                            </h3>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                                Số liệu được thống kê dựa trên các đơn hàng có trạng thái Đã giao.
+                            </p>
+                        </div>
+
+                        {/* Controls */}
+                        <div className="flex flex-wrap items-center gap-2">
+                            {/* Time Filters */}
+                            <div className="flex rounded-xl bg-slate-100 dark:bg-white/5 p-1 border border-slate-200/50 dark:border-white/5">
+                                {(
+                                    [
+                                        { key: 'day', label: 'Theo ngày' },
+                                        { key: 'week', label: 'Theo tuần' },
+                                        { key: 'month', label: 'Theo tháng' },
+                                    ] as const
+                                ).map((t) => (
+                                    <button
+                                        key={t.key}
+                                        onClick={() => {
+                                            setTimeFilter(t.key);
+                                            setHoveredIndex(null);
+                                        }}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                            timeFilter === t.key
+                                                ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
+                                                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                                        }`}
+                                    >
+                                        {t.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* View Modes */}
+                            <div className="flex rounded-xl bg-slate-100 dark:bg-white/5 p-1 border border-slate-200/50 dark:border-white/5">
+                                {(
+                                    [
+                                        { key: 'chart', label: 'Biểu đồ' },
+                                        { key: 'table', label: 'Bảng số liệu' },
+                                    ] as const
+                                ).map((m) => (
+                                    <button
+                                        key={m.key}
+                                        onClick={() => setViewMode(m.key)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                            viewMode === m.key
+                                                ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
+                                                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                                        }`}
+                                    >
+                                        {m.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setShowRevenueDetail(false)}
+                                className="w-8 h-8 rounded-xl flex items-center justify-center border border-slate-200 dark:border-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                                title="Đóng bảng chi tiết"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100/50 dark:border-white/5">
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-semibold tracking-wider">Tổng doanh thu kỳ</p>
+                            <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-1 leading-tight">{formatCurrency(summaryStats.total)}</p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100/50 dark:border-white/5">
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-semibold tracking-wider">Tổng đơn hàng</p>
+                            <p className="text-base font-extrabold text-slate-800 dark:text-slate-100 mt-1 leading-tight">{summaryStats.ordersCount} đơn</p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100/50 dark:border-white/5">
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-semibold tracking-wider">Doanh thu TB / mốc</p>
+                            <p className="text-base font-extrabold text-slate-800 dark:text-slate-100 mt-1 leading-tight">{formatCurrency(summaryStats.avgPeriod)}</p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100/50 dark:border-white/5">
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-semibold tracking-wider">Giá trị đơn TB (AOV)</p>
+                            <p className="text-base font-extrabold text-slate-800 dark:text-slate-100 mt-1 leading-tight">{formatCurrency(summaryStats.avgOrder)}</p>
+                        </div>
+                    </div>
+
+                    {/* Content view */}
+                    {viewMode === 'chart' ? (
+                        <div className="relative pt-4 bg-slate-50/50 dark:bg-slate-900/20 rounded-2xl border border-slate-100/50 dark:border-white/5 p-4">
+                            {/* Chart Title / Date Range Indicator */}
+                            <div className="flex items-center justify-between mb-4 px-2">
+                                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Biểu đồ xu hướng</span>
+                                <span className="text-xs text-slate-400 dark:text-slate-500">
+                                    {timeFilter === 'day' && "15 ngày vừa qua"}
+                                    {timeFilter === 'week' && "8 tuần vừa qua"}
+                                    {timeFilter === 'month' && "6 tháng vừa qua"}
+                                </span>
+                            </div>
+
+                            {/* SVG Container */}
+                            <div className="relative w-full h-[300px]">
+                                {(() => {
+                                    const width = 600;
+                                    const height = 300;
+                                    const paddingLeft = 60;
+                                    const paddingRight = 20;
+                                    const paddingTop = 20;
+                                    const paddingBottom = 40;
+                                    
+                                    const chartWidth = width - paddingLeft - paddingRight;
+                                    const chartHeight = height - paddingTop - paddingBottom;
+                                    
+                                    const points = activeRevenueData.map((d, index) => {
+                                        const x = paddingLeft + (index / (activeRevenueData.length - 1 || 1)) * chartWidth;
+                                        const y = paddingTop + chartHeight - (d.revenue / yMax) * chartHeight;
+                                        return { x, y, ...d };
+                                    });
+                                    
+                                    let linePath = "";
+                                    if (points.length > 0) {
+                                        linePath = `M ${points[0].x} ${points[0].y} ` + 
+                                            points.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ");
+                                    }
+                                    
+                                    let areaPath = "";
+                                    if (points.length > 0) {
+                                        areaPath = `${linePath} L ${points[points.length - 1].x} ${paddingTop + chartHeight} L ${points[0].x} ${paddingTop + chartHeight} Z`;
+                                    }
+
+                                    return (
+                                        <>
+                                            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full text-slate-900 dark:text-white" preserveAspectRatio="none">
+                                                <defs>
+                                                    <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                                                        <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                                                    </linearGradient>
+                                                </defs>
+
+                                                {/* Grid Lines */}
+                                                {ticks.map((tick, idx) => {
+                                                    const y = paddingTop + chartHeight - (tick / yMax) * chartHeight;
+                                                    return (
+                                                        <g key={idx} className="opacity-40">
+                                                            <line
+                                                                x1={paddingLeft}
+                                                                y1={y}
+                                                                x2={width - paddingRight}
+                                                                y2={y}
+                                                                className="stroke-slate-200 dark:stroke-slate-800 stroke-[1px] stroke-dashed"
+                                                                strokeDasharray="4 4"
+                                                            />
+                                                            <text
+                                                                x={paddingLeft - 10}
+                                                                y={y + 4}
+                                                                textAnchor="end"
+                                                                className="fill-slate-400 dark:fill-slate-500 text-[10px] font-medium"
+                                                            >
+                                                                {formatCurrencyAbbr(tick)}
+                                                            </text>
+                                                        </g>
+                                                    );
+                                                })}
+
+                                                {/* X Axis grid lines and labels */}
+                                                {points.map((p, idx) => {
+                                                    const showLabel = timeFilter !== 'day' || idx % 2 === 0 || idx === points.length - 1;
+                                                    return (
+                                                        <g key={idx}>
+                                                            {showLabel && (
+                                                                <text
+                                                                    x={p.x}
+                                                                    y={height - 15}
+                                                                    textAnchor="middle"
+                                                                    className="fill-slate-400 dark:fill-slate-500 text-[10px] font-medium"
+                                                                >
+                                                                    {p.label}
+                                                                </text>
+                                                            )}
+                                                        </g>
+                                                    );
+                                                })}
+
+                                                {/* Hover Vertical Guide Line */}
+                                                {hoveredIndex !== null && points[hoveredIndex] && (
+                                                    <line
+                                                        x1={points[hoveredIndex].x}
+                                                        y1={paddingTop}
+                                                        x2={points[hoveredIndex].x}
+                                                        y2={paddingTop + chartHeight}
+                                                        className="stroke-emerald-400/50 dark:stroke-emerald-500/50 stroke-[1.5px] stroke-dashed"
+                                                        strokeDasharray="3 3"
+                                                    />
+                                                )}
+
+                                                {/* Area Path */}
+                                                {areaPath && (
+                                                    <path
+                                                        d={areaPath}
+                                                        fill="url(#chartGradient)"
+                                                    />
+                                                )}
+
+                                                {/* Line Path */}
+                                                {linePath && (
+                                                    <path
+                                                        d={linePath}
+                                                        fill="none"
+                                                        className="stroke-emerald-500 stroke-[3px]"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                    />
+                                                )}
+
+                                                {/* Circles at nodes */}
+                                                {points.map((p, idx) => (
+                                                    <circle
+                                                        key={idx}
+                                                        cx={p.x}
+                                                        cy={p.y}
+                                                        r={hoveredIndex === idx ? 6 : 4}
+                                                        className={`transition-all duration-100 ${
+                                                            hoveredIndex === idx 
+                                                                ? "fill-emerald-500 stroke-white stroke-[2px] dark:stroke-[#1e2330]" 
+                                                                : "fill-white dark:fill-[#1e2330] stroke-emerald-500 stroke-[2px] cursor-pointer"
+                                                        }`}
+                                                    />
+                                                ))}
+
+                                                {/* Invisible Rectangular Hover Catchers */}
+                                                {points.map((p, idx) => {
+                                                    const spacing = chartWidth / (activeRevenueData.length - 1 || 1);
+                                                    const rectX = p.x - spacing / 2;
+                                                    return (
+                                                        <rect
+                                                            key={idx}
+                                                            x={rectX}
+                                                            y={paddingTop}
+                                                            width={spacing}
+                                                            height={chartHeight}
+                                                            fill="transparent"
+                                                            className="cursor-pointer"
+                                                            onMouseEnter={() => setHoveredIndex(idx)}
+                                                            onMouseLeave={() => setHoveredIndex(null)}
+                                                        />
+                                                    );
+                                                })}
+                                            </svg>
+
+                                            {/* HTML Tooltip Overlay (Absolute Positioned over parent) */}
+                                            {hoveredIndex !== null && points[hoveredIndex] && (
+                                                <div 
+                                                    className="absolute z-10 p-3 bg-slate-900/90 dark:bg-white/95 text-white dark:text-slate-900 rounded-xl shadow-xl pointer-events-none text-xs border border-white/10 dark:border-slate-200 transition-all duration-700 ease-out select-none"
+                                                    style={{
+                                                        left: `${(points[hoveredIndex].x / width) * 100}%`,
+                                                        top: `${(points[hoveredIndex].y / height) * 100 - 10}%`,
+                                                        transform: 'translate(-50%, -100%)',
+                                                    }}
+                                                >
+                                                    <p className="font-semibold mb-1 text-slate-300 dark:text-slate-500">{points[hoveredIndex].label}</p>
+                                                    <p className="text-sm font-bold text-emerald-400 dark:text-emerald-600">{formatCurrency(points[hoveredIndex].revenue)}</p>
+                                                    <p className="text-[10px] mt-0.5 text-slate-400 dark:text-slate-500">{points[hoveredIndex].orderCount} đơn hàng thành công</p>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-white/5">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-slate-50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5">
+                                        <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Mốc thời gian</th>
+                                        <th className="p-4 font-semibold text-slate-600 dark:text-slate-300 text-right">Doanh thu</th>
+                                        <th className="p-4 font-semibold text-slate-600 dark:text-slate-300 text-center">Số đơn hàng</th>
+                                        <th className="p-4 font-semibold text-slate-600 dark:text-slate-300 text-right">Giao dịch TB</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                                    {[...activeRevenueData].reverse().map((item, idx) => {
+                                        const avg = item.orderCount > 0 ? item.revenue / item.orderCount : 0;
+                                        return (
+                                            <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors">
+                                                <td className="p-4 font-medium text-slate-800 dark:text-slate-200">{item.label}</td>
+                                                <td className="p-4 text-right font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(item.revenue)}</td>
+                                                <td className="p-4 text-center text-slate-600 dark:text-slate-400">{item.orderCount}</td>
+                                                <td className="p-4 text-right text-slate-500 dark:text-slate-400">{formatCurrency(avg)}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Order Status Bar */}
             <OrderStatusBar stats={stats} />
