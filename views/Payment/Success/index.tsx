@@ -290,17 +290,12 @@ function SuccessContent() {
     const loadOrder = useCallback(async () => {
         if (!orderId) return;
         try {
-            const supabase = createClient();
-            const { data } = await supabase
-                .from('orders')
-                .select('total_amount, payment_status, status, tracking_number')
-                .eq('id', orderId)
-                .maybeSingle();
-
-            if (data) {
-                if (data.total_amount) setAmount(data.total_amount);
-                if (data.tracking_number) setTrackingNumber(data.tracking_number);
-                if (data.payment_status === 'paid') {
+            const res = await fetch(`/api/orders/${orderId}/status`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.totalAmount) setAmount(data.totalAmount);
+                if (data.trackingNumber) setTrackingNumber(data.trackingNumber);
+                if (data.isPaid) {
                     setIsPaid(true);
                 }
             }

@@ -61,11 +61,10 @@ export async function POST(req: NextRequest) {
         }
 
         const supabase = getSupabaseAdmin();
-        const rawContent = `${body.content || ""} ${body.description || ""} ${body.code || ""}`;
+        const rawContent = `${body.content || ""} ${body.description || ""} ${body.code || ""}`.trim();
 
         // 3. Trích xuất mã đơn hàng từ nội dung chuyển khoản
-        // Khớp 8 ký tự hex (ví dụ: TELECTRIC 053E16CE hoặc #053E16CE hoặc 053e16ce)
-        let matchedOrderId: string | null = null;
+        let matchedOrder: any = null;
 
         // Trích xuất tracking number dạng ORD-XXXXXXXX nếu có
         const trackingMatch = rawContent.match(/ORD-([a-fA-F0-9]{8})/i);
@@ -73,35 +72,51 @@ export async function POST(req: NextRequest) {
             const trackingNumber = `ORD-${trackingMatch[1].toUpperCase()}`;
             const { data: order } = await supabase
                 .from("orders")
-                .select("id, total_amount, status, payment_status, notes")
+                .select("id, total_amount, status, payment_status, notes, tracking_number")
                 .eq("tracking_number", trackingNumber)
                 .maybeSingle();
 
             if (order) {
-                matchedOrderId = order.id;
+                matchedOrder = order;
             }
         }
 
-        // Nếu chưa tìm thấy theo tracking number, tìm theo tiền tố UUID 8 ký tự
-        if (!matchedOrderId) {
-            const hexMatches = rawContent.match(/\b([a-fA-F0-9]{8})\b/g);
-            if (hexMatches && hexMatches.length > 0) {
-                for (const hex of hexMatches) {
-                    const { data: order } = await supabase
-                        .from("orders")
-                        .select("id, total_amount, status, payment_status, notes")
-                        .ilike("id", `${hex}%`)
-                        .maybeSingle();
+        // Lấy danh sách 100 đơn hàng gần đây để khớp tiền tố hex 8 ký tự hoặc UUID
+        if (!matchedOrder) {
+            const { data: recentOrders, error: listErr } = await supabase
+                .from("orders")
+                .select("id, total_amount, status, payment_status, notes, tracking_number")
+                .order("created_at", { ascending: false })
+                .limit(100);
 
-                    if (order) {
-                        matchedOrderId = order.id;
+            if (!listErr && recentOrders && recentOrders.length > 0) {
+                // Khớp bất kỳ cụm 8 ký tự hex nào trong nội dung
+                const hexMatches = rawContent.match(/\b([a-fA-F0-9]{8})\b/g) || [];
+                for (const hex of hexMatches) {
+                    const found = recentOrders.find((o: any) =>
+                        o.id.toLowerCase().startsWith(hex.toLowerCase()) ||
+                        (o.tracking_number && o.tracking_number.toLowerCase().includes(hex.toLowerCase()))
+                    );
+                    if (found) {
+                        matchedOrder = found;
                         break;
+                    }
+                }
+
+                // Nếu vẫn chưa tìm thấy, kiểm tra xem có bất kỳ order nào xuất hiện tiền tố trong rawContent
+                if (!matchedOrder) {
+                    for (const o of recentOrders) {
+                        const shortId = o.id.slice(0, 8).toUpperCase();
+                        if (rawContent.toUpperCase().includes(shortId)) {
+                            matchedOrder = o;
+                            break;
+                        }
                     }
                 }
             }
         }
 
-        if (!matchedOrderId) {
+        if (!matchedOrder) {
             console.warn(`[SePay Webhook] Could not match any order from content: "${rawContent}"`);
             return NextResponse.json({
                 success: true,
@@ -109,35 +124,23 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // 4. Lấy thông tin đơn hàng để kiểm tra số tiền và cập nhật
-        const { data: order, error: fetchErr } = await supabase
-            .from("orders")
-            .select("id, total_amount, status, payment_status, notes")
-            .eq("id", matchedOrderId)
-            .single();
-
-        if (fetchErr || !order) {
-            console.error("[SePay Webhook] Error fetching matched order:", fetchErr);
-            return NextResponse.json({ success: false, message: "Order not found" }, { status: 404 });
-        }
-
-        // Nếu đơn đã thanh toán trước đó, ghi nhận và trả về success
-        if (order.payment_status === "paid") {
-            console.log(`[SePay Webhook] Order ${order.id} was already marked as paid.`);
+        // 4. Nếu đơn đã thanh toán trước đó, ghi nhận và trả về success
+        if (matchedOrder.payment_status === "paid") {
+            console.log(`[SePay Webhook] Order ${matchedOrder.id} was already marked as paid.`);
             return NextResponse.json({
                 success: true,
                 message: "Order already paid",
-                orderId: order.id
+                orderId: matchedOrder.id
             });
         }
 
         // 5. Cập nhật đơn hàng sang trạng thái "Đã thanh toán"
         const updateNote = [
-            order.notes || "",
+            matchedOrder.notes || "",
             `[SePay Auto-Paid] GD #${body.id || "N/A"} lúc ${body.transactionDate || new Date().toLocaleString("vi-VN")} (+${rawAmount.toLocaleString("vi-VN")}đ, Ref: ${body.referenceCode || "N/A"})`
         ].filter(Boolean).join(" | ");
 
-        const newStatus = order.status === "pending" ? "processing" : order.status;
+        const newStatus = matchedOrder.status === "pending" ? "processing" : matchedOrder.status;
 
         const { error: updateErr } = await supabase
             .from("orders")
@@ -147,19 +150,19 @@ export async function POST(req: NextRequest) {
                 notes: updateNote,
                 updated_at: new Date().toISOString()
             })
-            .eq("id", order.id);
+            .eq("id", matchedOrder.id);
 
         if (updateErr) {
             console.error("[SePay Webhook] Error updating order:", updateErr);
             return NextResponse.json({ success: false, message: "Failed to update order" }, { status: 500 });
         }
 
-        console.log(`✅ [SePay Webhook] Successfully marked Order #${order.id.slice(0, 8)} as PAID!`);
+        console.log(`✅ [SePay Webhook] Successfully marked Order #${matchedOrder.id.slice(0, 8)} as PAID!`);
 
         return NextResponse.json({
             success: true,
             message: "Order payment confirmed successfully via SePay",
-            orderId: order.id,
+            orderId: matchedOrder.id,
             amount: rawAmount
         });
 
