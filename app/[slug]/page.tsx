@@ -12,9 +12,8 @@ interface PageProps {
 }
 
 function getSupabase() {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !key) return null;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://oruauodjvprscllyzyvw.supabase.co";
+    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_z-GVqg-oqJaOOWoMOQgtnQ_z6C46axk";
     return createClient(url, key);
 }
 

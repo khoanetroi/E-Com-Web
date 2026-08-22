@@ -80,11 +80,13 @@ export const MainHeader = () => {
             }
 
             setIsSearching(true);
+            const keyword = debouncedSearchQuery.trim().replace(/'/g, "''");
+            const slugKeyword = keyword.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
             const { data, error } = await supabase
                 .from("products")
-                .select("id, name, thumbnail, slug")
-                .ilike("name", `%${debouncedSearchQuery.trim()}%`)
-                .limit(5);
+                .select("id, name, thumbnail, slug, brand")
+                .or(`name.ilike.%${keyword}%,slug.ilike.%${slugKeyword}%,brand.ilike.%${keyword}%`)
+                .limit(6);
 
             if (!error && data) {
                 setSearchResults(data);
