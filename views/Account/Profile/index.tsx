@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 
+import { ChangePasswordDialog } from "@/components/account/ChangePasswordDialog"
+
 export default async function ProfilePage() {
     const supabase = await createClient()
 
@@ -79,9 +81,7 @@ export default async function ProfilePage() {
                             <p className="text-sm font-medium text-slate-900 dark:text-white">Đổi mật khẩu</p>
                             <p className="text-xs text-slate-500 dark:text-gray-500">Thay đổi mật khẩu đăng nhập của bạn</p>
                         </div>
-                        <Button variant="outline" className="bg-slate-100 dark:bg-[#2a3040] border-slate-200 dark:border-0 hover:bg-slate-200 dark:hover:bg-[#353b4d] text-slate-900 dark:text-white">
-                            Đổi mật khẩu
-                        </Button>
+                        <ChangePasswordDialog />
                     </div>
                 </CardContent>
             </Card>

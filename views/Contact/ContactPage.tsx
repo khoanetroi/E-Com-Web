@@ -98,7 +98,7 @@ export default function ContactPage() {
                                                 <p className="italic text-xs text-slate-500 leading-relaxed">
                                                     Số GCNĐKKD: <span className="font-semibold text-slate-600 dark:text-slate-400">41L8037603</span><br />
                                                     Đăng ký lần đầu: 17/5/2023<br />
-                                                    Đại diện: <span className="font-semibold text-slate-600 dark:text-slate-400">Nguyễn Đắc Tài</span>
+                                                    Đại diện: <span className="font-semibold text-slate-600 dark:text-slate-400">Nguyễn Đăng Khoa</span>
                                                 </p>
                                             </div>
                                         </div>

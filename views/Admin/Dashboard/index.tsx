@@ -26,6 +26,7 @@ import {
     DollarSign,
     Activity,
     BarChart3,
+    Ticket,
 } from "lucide-react";
 
 // ========================
@@ -41,7 +42,8 @@ interface DashboardStats {
     totalRevenue: number;
     totalProducts: number;
     totalUsers: number;
-    totalNews: number;
+    totalTickets: number;
+    pendingTickets: number;
     recentOrders: RecentOrder[];
 }
 
@@ -275,7 +277,8 @@ export default function AdminDashboard() {
         totalRevenue: 0,
         totalProducts: 0,
         totalUsers: 0,
-        totalNews: 0,
+        totalTickets: 0,
+        pendingTickets: 0,
         recentOrders: [],
     });
 
@@ -288,7 +291,8 @@ export default function AdminDashboard() {
                     revenueRes,
                     productsRes,
                     usersRes,
-                    newsRes,
+                    ticketsRes,
+                    pendingTicketsRes,
                     pendingRes,
                     processingRes,
                     shippedRes,
@@ -300,7 +304,8 @@ export default function AdminDashboard() {
                     supabase.from("orders").select("total_amount").eq("status", "delivered"),
                     supabase.from("products").select("*", { count: "exact", head: true }),
                     supabase.from("profiles").select("*", { count: "exact", head: true }),
-                    supabase.from("news").select("*", { count: "exact", head: true }),
+                    supabase.from("warranty_tickets").select("*", { count: "exact", head: true }),
+                    supabase.from("warranty_tickets").select("*", { count: "exact", head: true }).in("status", ["received", "processing"]),
                     supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "pending"),
                     supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "processing"),
                     supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "shipped"),
@@ -325,7 +330,8 @@ export default function AdminDashboard() {
                     totalRevenue,
                     totalProducts: productsRes.count || 0,
                     totalUsers: usersRes.count || 0,
-                    totalNews: newsRes.count || 0,
+                    totalTickets: ticketsRes.count || 0,
+                    pendingTickets: pendingTicketsRes.count || 0,
                     recentOrders: recentRes.data || [],
                 });
             } catch (err) {
@@ -361,15 +367,23 @@ export default function AdminDashboard() {
             subtitle: "Đang kinh doanh",
         },
         {
-            title: "Người dùng",
-            value: loading ? "—" : stats.totalUsers.toLocaleString("vi-VN"),
-            icon: <Users size={22} />,
-            gradient: "bg-gradient-to-br from-purple-400 to-violet-600",
-            subtitle: "Tài khoản đã đăng ký",
+            title: "Ticket Lỗi (AI)",
+            value: loading ? "—" : stats.totalTickets.toLocaleString("vi-VN"),
+            icon: <Ticket size={22} />,
+            gradient: "bg-gradient-to-br from-amber-500 to-rose-600",
+            subtitle: `${stats.pendingTickets} ticket cần xử lý`,
         },
     ];
 
     const quickLinks = [
+        {
+            href: "/admin/warranty-tickets",
+            icon: <Ticket size={20} />,
+            label: "Ticket báo lỗi (AI)",
+            description: "Chẩn đoán & xử lý sự cố thiết bị",
+            color: "bg-gradient-to-br from-amber-500 to-orange-600",
+            badge: stats.pendingTickets,
+        },
         {
             href: "/admin/orders",
             icon: <ShoppingCart size={20} />,
@@ -386,7 +400,6 @@ export default function AdminDashboard() {
             color: "bg-gradient-to-br from-blue-400 to-indigo-600",
             badge: 0,
         },
-
         {
             href: "/admin/users",
             icon: <Users size={20} />,
@@ -395,13 +408,20 @@ export default function AdminDashboard() {
             color: "bg-gradient-to-br from-purple-400 to-violet-600",
             badge: 0,
         },
-
         {
             href: "/admin/categories",
             icon: <Layers size={20} />,
             label: "Danh mục",
             description: "Phân loại sản phẩm",
             color: "bg-gradient-to-br from-teal-400 to-cyan-600",
+            badge: 0,
+        },
+        {
+            href: "/admin/brands",
+            icon: <ImageIcon size={20} />,
+            label: "Thương hiệu",
+            description: "Quản lý logo & hãng đối tác",
+            color: "bg-gradient-to-br from-pink-500 to-rose-600",
             badge: 0,
         },
         {
@@ -412,15 +432,6 @@ export default function AdminDashboard() {
             color: "bg-gradient-to-br from-emerald-400 to-green-600",
             badge: 0,
         },
-        {
-            href: "/admin/warranty-check",
-            icon: <SearchCheck size={20} />,
-            label: "Tra cứu bảo hành",
-            description: "Kiểm tra tình trạng bảo hành",
-            color: "bg-gradient-to-br from-sky-400 to-blue-600",
-            badge: 0,
-        },
-
     ];
 
     return (

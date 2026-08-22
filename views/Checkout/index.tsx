@@ -317,13 +317,14 @@ export default function CheckoutPage() {
                 }
             }
 
+            const totalAmount = getCartTotal(cartItems);
             clearCart();
             setCartItems([]);
 
             if (paymentMethod === "qr") {
-                router.push(`/payment/success?orderId=${newOrderId}&method=qr`);
+                router.push(`/payment/success?orderId=${newOrderId}&method=qr&amount=${totalAmount}`);
             } else {
-                router.push(`/payment/success?orderId=${newOrderId}&method=cod`);
+                router.push(`/payment/success?orderId=${newOrderId}&method=cod&amount=${totalAmount}`);
             }
         } catch (err: any) {
             toast({
@@ -606,11 +607,11 @@ export default function CheckoutPage() {
                                         <CreditCard className="h-5 w-5" />
                                     </div>
                                     <div className="flex-1">
-                                        <p className="font-bold text-[15px] text-slate-900 dark:text-slate-200">Chuyển khoản / Quét mã QR</p>
-                                        <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">Quét mã QR ngân hàng — xác nhận nhanh</p>
+                                        <p className="font-bold text-[15px] text-slate-900 dark:text-slate-200">Chuyển khoản SePay / VietQR</p>
+                                        <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">Quét mã QR MBBank — xác nhận thanh toán tự động</p>
                                     </div>
                                     {/* QR badge */}
-                                    <span className="flex-shrink-0 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md tracking-wide hidden sm:inline">QR PAY</span>
+                                    <span className="flex-shrink-0 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md tracking-wide hidden sm:inline">SEPAY AUTO</span>
                                 </label>
                             </div>
 

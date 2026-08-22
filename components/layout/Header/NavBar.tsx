@@ -54,11 +54,10 @@ export const NavBar = () => {
                     <ul className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 md:h-full p-4 md:p-0 min-w-max md:pr-4 md:border-r md:border-transparent">
                         <NavItem href="/" icon={<Home size={16} />} label="Trang Chủ" onClick={() => setIsMobileMenuOpen(false)} />
                         <NavItem href="/products" icon={<Package size={16} />} label="Sản Phẩm" onClick={() => setIsMobileMenuOpen(false)} />
-
+                        <NavItem href="/brands" icon={<Zap size={16} />} label="Thương Hiệu" onClick={() => setIsMobileMenuOpen(false)} />
                         <NavItem href="/warranty-check" icon={<ShieldCheck size={16} />} label="Tra cứu BH" onClick={() => setIsMobileMenuOpen(false)} />
                         <NavItem href="/contact" icon={<LifeBuoy size={16} />} label="Liên Hệ" onClick={() => setIsMobileMenuOpen(false)} />
                         <NavItem href="/account/tickets" icon={<Ticket size={16} />} label="Báo lỗi SP" onClick={() => setIsMobileMenuOpen(false)} />
-
                     </ul>
                 </nav>
 
