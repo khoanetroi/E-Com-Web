@@ -1,7 +1,7 @@
 import type { WarrantyTicketAnalysis } from "@/lib/warranty-ticket";
 import { extractJsonBlock, safeJsonParse } from "./utils/jsonHelper";
 
-const DEFAULT_MODEL = "gemini-3.5-flash-lite";
+const DEFAULT_MODEL = "gemini-3.5-flash";
 
 export function buildWarrantyTicketPrompt(input: {
   productName?: string | null;
