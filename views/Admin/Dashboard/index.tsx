@@ -131,7 +131,7 @@ const processRevenueData = (orders: { total_amount: number; created_at: string }
             const sunday = new Date(monday);
             sunday.setDate(monday.getDate() + 6);
             sunday.setHours(23, 59, 59, 999);
-            
+
             const dateKey = monday.toLocaleDateString('en-CA');
             const monStr = monday.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
             const sunStr = sunday.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
@@ -148,7 +148,7 @@ const processRevenueData = (orders: { total_amount: number; created_at: string }
                 bMonday.setHours(0, 0, 0, 0);
                 const bSunday = new Date(bMonday);
                 bSunday.setDate(bMonday.getDate() + 7);
-                
+
                 if (oTime >= bMonday.getTime() && oTime < bSunday.getTime()) {
                     bucket.revenue += order.total_amount || 0;
                     bucket.orderCount += 1;
@@ -197,43 +197,55 @@ interface StatCardProps {
     gradient: string;
     trend?: { value: number; positive: boolean };
     subtitle?: string;
+    href?: string;
     onClick?: () => void;
     clickable?: boolean;
     isActive?: boolean;
 }
 
-const StatCard = ({ title, value, icon, gradient, trend, subtitle, onClick, clickable, isActive }: StatCardProps) => (
-    <div 
-        onClick={onClick}
-        className={`relative overflow-hidden rounded-2xl bg-white dark:bg-[#1e2330] border p-6 shadow-sm transition-all duration-300 group ${
-            clickable ? "cursor-pointer hover:shadow-lg hover:-translate-y-0.5" : ""
-        } ${
-            isActive 
-                ? "border-emerald-500 ring-2 ring-emerald-500/20 dark:border-emerald-500 dark:ring-emerald-500/10" 
-                : "border-slate-100 dark:border-white/5"
-        }`}
-    >
-        {/* Gradient blob */}
-        <div className={`absolute -right-6 -top-6 w-28 h-28 rounded-full opacity-10 group-hover:opacity-15 transition-opacity ${gradient}`} />
+const StatCard = ({ title, value, icon, gradient, trend, subtitle, href, onClick, clickable, isActive }: StatCardProps) => {
+    const isClickable = clickable || !!href || !!onClick;
+    const cardContent = (
+        <div
+            onClick={onClick}
+            className={`relative overflow-hidden rounded-2xl bg-white dark:bg-[#1e2330] border p-6 shadow-sm transition-all duration-300 group h-full ${isClickable ? "cursor-pointer hover:shadow-lg hover:-translate-y-0.5" : ""
+                } ${isActive
+                    ? "border-emerald-500 ring-2 ring-emerald-500/20 dark:border-emerald-500 dark:ring-emerald-500/10"
+                    : "border-slate-100 dark:border-white/5"
+                }`}
+        >
+            {/* Gradient blob */}
+            <div className={`absolute -right-6 -top-6 w-28 h-28 rounded-full opacity-10 group-hover:opacity-15 transition-opacity ${gradient}`} />
 
-        <div className="flex items-start justify-between relative">
-            <div className="flex-1">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{title}</p>
-                <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1 leading-tight">{value}</p>
-                {subtitle && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{subtitle}</p>}
-                {trend && (
-                    <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${trend.positive ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
-                        {trend.positive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                        <span>{trend.value}% so với tháng trước</span>
-                    </div>
-                )}
-            </div>
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${gradient}`}>
-                {icon}
+            <div className="flex items-start justify-between relative">
+                <div className="flex-1">
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{title}</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1 leading-tight">{value}</p>
+                    {subtitle && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{subtitle}</p>}
+                    {trend && (
+                        <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${trend.positive ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                            {trend.positive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                            <span>{trend.value}% so với tháng trước</span>
+                        </div>
+                    )}
+                </div>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${gradient}`}>
+                    {icon}
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+
+    if (href) {
+        return (
+            <Link href={href} className="block h-full">
+                {cardContent}
+            </Link>
+        );
+    }
+
+    return cardContent;
+};
 
 // ========================
 // QUICK LINK BUTTON
@@ -422,16 +434,16 @@ export default function AdminDashboard() {
 
     const { yMax, ticks } = useMemo(() => {
         const maxVal = Math.max(...activeRevenueData.map(d => d.revenue), 0);
-        
+
         if (maxVal <= 0) return { yMax: 1000000, ticks: [1000000, 750000, 500000, 250000, 0] };
-        
+
         const log10 = Math.log10(maxVal);
         const magnitude = Math.pow(10, Math.floor(log10));
-        
+
         let roundedMax = Math.ceil(maxVal / (magnitude / 2)) * (magnitude / 2);
         if (roundedMax === maxVal) roundedMax += magnitude;
         if (roundedMax < maxVal) roundedMax = maxVal;
-        
+
         const generatedTicks = [roundedMax, roundedMax * 0.75, roundedMax * 0.5, roundedMax * 0.25, 0];
         return { yMax: roundedMax, ticks: generatedTicks };
     }, [activeRevenueData]);
@@ -520,7 +532,8 @@ export default function AdminDashboard() {
             value: loading ? "—" : stats.totalOrders.toLocaleString("vi-VN"),
             icon: <ShoppingCart size={22} />,
             gradient: "bg-gradient-to-br from-orange-400 to-orange-600",
-            subtitle: `${stats.pendingOrders} đang chờ xử lý`,
+            subtitle: `${stats.pendingOrders} đang chờ xử lý • Nhấp để xem`,
+            href: "/admin/orders",
         },
         {
             title: "Doanh thu (đã giao)",
@@ -547,14 +560,16 @@ export default function AdminDashboard() {
             value: loading ? "—" : stats.totalProducts.toLocaleString("vi-VN"),
             icon: <Package size={22} />,
             gradient: "bg-gradient-to-br from-blue-400 to-indigo-600",
-            subtitle: "Đang kinh doanh",
+            subtitle: "Đang kinh doanh • Nhấp để quản lý",
+            href: "/admin/products",
         },
         {
-            title: "Ticket Lỗi (AI)",
-            value: loading ? "—" : stats.totalTickets.toLocaleString("vi-VN"),
-            icon: <Ticket size={22} />,
-            gradient: "bg-gradient-to-br from-amber-500 to-rose-600",
-            subtitle: `${stats.pendingTickets} ticket cần xử lý`,
+            title: "Khách hàng",
+            value: loading ? "—" : stats.totalUsers.toLocaleString("vi-VN"),
+            icon: <Users size={22} />,
+            gradient: "bg-gradient-to-br from-purple-400 to-violet-600",
+            subtitle: "Tài khoản khách hàng • Nhấp để quản lý",
+            href: "/admin/users",
         },
     ];
 
@@ -562,10 +577,10 @@ export default function AdminDashboard() {
         {
             href: "/admin/warranty-tickets",
             icon: <Ticket size={20} />,
-            label: "Ticket báo lỗi (AI)",
+            label: "Ticket báo lỗi",
             description: "Chẩn đoán & xử lý sự cố thiết bị",
             color: "bg-gradient-to-br from-amber-500 to-orange-600",
-            badge: stats.pendingTickets,
+            badge: stats.pendingTickets || stats.unresolvedTickets,
         },
         {
             href: "/admin/orders",
@@ -574,14 +589,6 @@ export default function AdminDashboard() {
             description: "Quản lý & cập nhật đơn hàng",
             color: "bg-gradient-to-br from-orange-400 to-orange-600",
             badge: stats.pendingOrders,
-        },
-        {
-            href: "/admin/warranty-tickets",
-            icon: <ShieldAlert size={20} />,
-            label: "Ticket lỗi & Bảo hành",
-            description: "Chẩn đoán AI & xử lý ticket",
-            color: "bg-gradient-to-br from-rose-500 to-red-600",
-            badge: stats.unresolvedTickets,
         },
         {
             href: "/admin/products",
@@ -696,11 +703,10 @@ export default function AdminDashboard() {
                                             setTimeFilter(t.key);
                                             setHoveredIndex(null);
                                         }}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                            timeFilter === t.key
-                                                ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
-                                                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${timeFilter === t.key
+                                            ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
+                                            : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                                            }`}
                                     >
                                         {t.label}
                                     </button>
@@ -718,11 +724,10 @@ export default function AdminDashboard() {
                                     <button
                                         key={m.key}
                                         onClick={() => setViewMode(m.key)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                            viewMode === m.key
-                                                ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
-                                                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === m.key
+                                            ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
+                                            : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                                            }`}
                                     >
                                         {m.label}
                                     </button>
@@ -782,22 +787,22 @@ export default function AdminDashboard() {
                                     const paddingRight = 20;
                                     const paddingTop = 20;
                                     const paddingBottom = 40;
-                                    
+
                                     const chartWidth = width - paddingLeft - paddingRight;
                                     const chartHeight = height - paddingTop - paddingBottom;
-                                    
+
                                     const points = activeRevenueData.map((d, index) => {
                                         const x = paddingLeft + (index / (activeRevenueData.length - 1 || 1)) * chartWidth;
                                         const y = paddingTop + chartHeight - (d.revenue / yMax) * chartHeight;
                                         return { x, y, ...d };
                                     });
-                                    
+
                                     let linePath = "";
                                     if (points.length > 0) {
-                                        linePath = `M ${points[0].x} ${points[0].y} ` + 
+                                        linePath = `M ${points[0].x} ${points[0].y} ` +
                                             points.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ");
                                     }
-                                    
+
                                     let areaPath = "";
                                     if (points.length > 0) {
                                         areaPath = `${linePath} L ${points[points.length - 1].x} ${paddingTop + chartHeight} L ${points[0].x} ${paddingTop + chartHeight} Z`;
@@ -895,11 +900,10 @@ export default function AdminDashboard() {
                                                         cx={p.x}
                                                         cy={p.y}
                                                         r={hoveredIndex === idx ? 6 : 4}
-                                                        className={`transition-all duration-100 ${
-                                                            hoveredIndex === idx 
-                                                                ? "fill-emerald-500 stroke-white stroke-[2px] dark:stroke-[#1e2330]" 
-                                                                : "fill-white dark:fill-[#1e2330] stroke-emerald-500 stroke-[2px] cursor-pointer"
-                                                        }`}
+                                                        className={`transition-all duration-100 ${hoveredIndex === idx
+                                                            ? "fill-emerald-500 stroke-white stroke-[2px] dark:stroke-[#1e2330]"
+                                                            : "fill-white dark:fill-[#1e2330] stroke-emerald-500 stroke-[2px] cursor-pointer"
+                                                            }`}
                                                     />
                                                 ))}
 
@@ -925,7 +929,7 @@ export default function AdminDashboard() {
 
                                             {/* HTML Tooltip Overlay (Absolute Positioned over parent) */}
                                             {hoveredIndex !== null && points[hoveredIndex] && (
-                                                <div 
+                                                <div
                                                     className="absolute z-10 p-3 bg-slate-900/90 dark:bg-white/95 text-white dark:text-slate-900 rounded-xl shadow-xl pointer-events-none text-xs border border-white/10 dark:border-slate-200 transition-all duration-700 ease-out select-none"
                                                     style={{
                                                         left: `${(points[hoveredIndex].x / width) * 100}%`,
