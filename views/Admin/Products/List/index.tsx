@@ -37,7 +37,9 @@ export default async function AdminProductsPage({
         .range(from, to);
 
     if (searchParams?.search) {
-        query = query.ilike("name", `%${searchParams.search}%`);
+        const term = searchParams.search.trim().replace(/'/g, "''");
+        const slugTerm = term.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+        query = query.or(`name.ilike.%${term}%,slug.ilike.%${slugTerm}%,brand.ilike.%${term}%`);
     }
 
     const { data: products, count } = await query;

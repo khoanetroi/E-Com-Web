@@ -68,6 +68,7 @@ const outfit = Outfit({
 });
 
 import { Toaster } from "@/components/ui/toaster";
+import ZaloButton from "@/components/common/ZaloButton";
 
 export default function RootLayout({
   children,
@@ -122,9 +123,8 @@ export default function RootLayout({
           defaultTheme="light"
           disableTransitionOnChange
         >
-          {/* <DefaultLayout> */}
           {children}
-          {/* </DefaultLayout> */}
+          <ZaloButton />
           <Toaster />
         </ThemeProvider>
       </body>

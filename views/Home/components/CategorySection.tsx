@@ -164,7 +164,15 @@ export function CategorySection({
 
         const fetchBrandLogos = async () => {
             if (!pinnedBrandNames || pinnedBrandNames.length === 0) { setBrands([]); return; }
-            setBrands(pinnedBrandNames.map(name => ({ name, logoUrl: getBrandLogo(name) })));
+            try {
+                const { data: logos } = await supabase.from("brand_logos").select("brand_name, logo_url").in("brand_name", pinnedBrandNames);
+                setBrands(pinnedBrandNames.map(name => {
+                    const logo = logos?.find(l => l.brand_name.toLowerCase() === name.toLowerCase());
+                    return { name, logoUrl: logo?.logo_url || getBrandLogo(name) };
+                }));
+            } catch {
+                setBrands(pinnedBrandNames.map(name => ({ name, logoUrl: getBrandLogo(name) })));
+            }
         };
         fetchBrandLogos();
     }, [parentCatId, supabase, pinnedBrandNames]);

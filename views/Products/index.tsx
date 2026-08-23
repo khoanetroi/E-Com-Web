@@ -141,7 +141,8 @@ function ProductsPageInner() {
 
                 if (filters.search.trim()) {
                     const keyword = filters.search.trim().replace(/'/g, "''");
-                    query = query.or(`name.ilike.%${keyword}%,brand.ilike.%${keyword}%`);
+                    const slugKeyword = keyword.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+                    query = query.or(`name.ilike.%${keyword}%,slug.ilike.%${slugKeyword}%,brand.ilike.%${keyword}%`);
                 }
                 if (categoryId) {
                     query = query.in("product_categories_mapping.category_id", [categoryId, ...categoryChildIds]);

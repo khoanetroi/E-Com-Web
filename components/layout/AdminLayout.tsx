@@ -16,6 +16,7 @@ import {
     ShieldCheck,
     SearchCheck,
     Ticket,
+    Image as ImageIcon,
     Menu,
     Sun,
     Moon,
@@ -48,9 +49,8 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
     const menuItems = [
         { path: '/admin', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
         { path: '/admin/products', icon: <Package size={20} />, label: 'Sản phẩm' },
-
+        { path: '/admin/brands', icon: <ImageIcon size={20} />, label: 'Thương hiệu' },
         { path: '/admin/orders', icon: <ShoppingCart size={20} />, label: 'Đơn hàng' },
-
         { path: '/admin/categories', icon: <Layers size={20} />, label: 'Danh mục' },
         // --- MỤC MỚI THÊM ---
         { path: '/admin/warranty', icon: <ShieldCheck size={20} />, label: 'Quản lý bảo hành' },

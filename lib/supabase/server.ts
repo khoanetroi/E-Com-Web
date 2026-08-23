@@ -1,6 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+const DEFAULT_SUPABASE_URL = "https://oruauodjvprscllyzyvw.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_z-GVqg-oqJaOOWoMOQgtnQ_z6C46axk";
+
 /**
  * Especially important if using Fluid compute: Don't put this client in a
  * global variable. Always create a new client within each function when using
@@ -8,10 +11,12 @@ import { cookies } from "next/headers";
  */
 export async function createClient() {
   const cookieStore = await cookies();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY;
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    url,
+    key,
     {
       cookies: {
         getAll() {
@@ -34,15 +39,18 @@ export async function createClient() {
 }
 
 export async function createStaticClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY;
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    url,
+    key,
     {
       cookies: {
         getAll() {
           return [];
         },
-        setAll(cookiesToSet) {
+        setAll() {
           // No-op for static generation
         },
       },

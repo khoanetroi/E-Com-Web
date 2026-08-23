@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { Zap } from "lucide-react";
 import { BRAND_LIST, BrandItem } from "@/lib/constants/brands";
 import { createClient } from "@/lib/supabase/client";
 
@@ -28,32 +29,37 @@ export function BrandMarquee() {
 
     if (brands.length === 0) return null;
 
-    const ITEM_WIDTH = 224;
-    const SPEED = 50;
-    const trackPx = brands.length * ITEM_WIDTH;
-    const duration = Math.max(12, Math.round(trackPx / SPEED));
+    const ITEM_WIDTH = 220;
+    const SPEED = 40;
+    const trackPx = Math.max(brands.length, 6) * ITEM_WIDTH;
+    const duration = Math.max(16, Math.round(trackPx / SPEED));
 
-    const doubled = [...brands, ...brands];
+    // Double/Triple for smooth marquee loop
+    const doubled = [...brands, ...brands, ...brands];
 
     return (
-        <section className="py-10 bg-slate-50 dark:bg-[#161c2a] border-t border-slate-200 dark:border-white/5">
+        <section className="py-10 bg-slate-50 dark:bg-[#121624] border-t border-slate-200 dark:border-white/5">
             <div className="container mx-auto max-w-7xl px-4">
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
-                        Đối tác & Thương hiệu <span className="text-electric-orange">Hàng đầu</span>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-950/40 text-electric-orange text-xs font-semibold mb-2">
+                        <Zap size={14} />
+                        Đối tác chính hãng
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                        Thương hiệu <span className="text-electric-orange">Hàng đầu</span>
                     </h2>
-                    <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm">
-                        Phân phối chính hãng các thương hiệu nổi tiếng thế giới
+                    <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
+                        Phân phối thiết bị điện và công nghiệp từ các nhà sản xuất uy tín thế giới
                     </p>
                 </div>
 
-                {/* Ticker — nằm trong container, overflow hidden */}
+                {/* Ticker */}
                 <div
-                    className="relative overflow-hidden rounded-xl"
+                    className="relative overflow-hidden rounded-xl py-2"
                     style={{
-                        maskImage: "linear-gradient(to right, transparent, black 5%, black 95%, transparent)",
-                        WebkitMaskImage: "linear-gradient(to right, transparent, black 5%, black 95%, transparent)",
+                        maskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+                        WebkitMaskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
                     }}
                 >
                     <div
@@ -66,17 +72,17 @@ export function BrandMarquee() {
                                 href={`/products?brand=${encodeURIComponent(brand.brand_name)}`}
                                 title={`Xem sản phẩm ${brand.brand_name}`}
                                 style={{ width: `${ITEM_WIDTH - 24}px`, margin: "0 12px" }}
-                                className="flex-shrink-0 h-[88px] bg-white dark:bg-[#1b2133] rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-center p-5 hover:border-electric-orange hover:shadow-lg transition-all duration-300 group"
+                                className="flex-shrink-0 h-[76px] bg-white dark:bg-[#1a2030] rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-center p-4 hover:border-electric-orange hover:shadow-md transition-all duration-300 group"
                             >
                                 {brand.logo_url ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img
                                         src={brand.logo_url}
                                         alt={brand.brand_name}
-                                        className="max-w-full max-h-[52px] object-contain transition-all duration-500"
+                                        className="max-w-full max-h-[46px] object-contain transition-transform duration-300 group-hover:scale-105"
                                     />
                                 ) : (
-                                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-700 dark:group-hover:text-white transition-colors text-center leading-tight">
+                                    <span className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 group-hover:text-electric-orange transition-colors text-center leading-tight">
                                         {brand.brand_name}
                                     </span>
                                 )}

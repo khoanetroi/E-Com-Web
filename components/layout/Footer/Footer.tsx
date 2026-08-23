@@ -109,7 +109,7 @@ const Footer = () => {
                         &copy; 2023–2026 <strong className="text-slate-700 dark:text-slate-300">TELECTRIC</strong>. All rights reserved.
                     </p>
                     <p className="text-center sm:text-right">
-                        Đại diện: <strong className="text-slate-700 dark:text-slate-300">Nguyễn Đắc Tài</strong>
+                        Đại diện: <strong className="text-slate-700 dark:text-slate-300">Nguyễn Đăng Khoa</strong>
                         {' · '}
                         <a href="tel:0934001435" className="hover:text-electric-orange transition-colors">0934 001 435</a>
                     </p>

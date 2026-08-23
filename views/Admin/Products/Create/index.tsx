@@ -150,7 +150,7 @@ export default function ProductForm({ initialData }: { initialData?: any }) {
     useEffect(() => {
         const fetchBrandLogos = async () => {
             try {
-                const { data, error } = await supabase
+                const { data } = await supabase
                     .from("brand_logos")
                     .select("id, brand_name, logo_url, created_at")
                     .order("brand_name");

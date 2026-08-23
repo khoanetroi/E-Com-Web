@@ -12,15 +12,15 @@ interface PageProps {
 }
 
 function getSupabase() {
-    return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-    );
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://oruauodjvprscllyzyvw.supabase.co";
+    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_z-GVqg-oqJaOOWoMOQgtnQ_z6C46axk";
+    return createClient(url, key);
 }
 
 // Giúp next-sitemap tạo URL cho từng sản phẩm trong sitemap.xml
 export async function generateStaticParams() {
     const supabase = getSupabase();
+    if (!supabase) return [];
     const { data: products } = await supabase
         .from("products")
         .select("slug");
@@ -31,6 +31,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { slug } = await params;
     const supabase = getSupabase();
+    if (!supabase) return { title: "TELECTRIC" };
 
     const { data: product } = await supabase
         .from("products")
@@ -76,6 +77,7 @@ function fmtPrice(n: number) {
 export default async function Page({ params }: PageProps) {
     const { slug } = await params;
     const supabase = getSupabase();
+    if (!supabase) notFound();
 
     // Fetch FULL product data server-side (cho SEO)
     const { data: product } = await supabase

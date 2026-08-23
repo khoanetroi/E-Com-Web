@@ -27,7 +27,11 @@ import {
     DollarSign,
     Activity,
     BarChart3,
+    Ticket,
+    Flame,
+    ShieldAlert,
 } from "lucide-react";
+import DefectRateAnalytics from "@/components/admin/DefectRateAnalytics";
 
 // ========================
 // TYPES
@@ -43,6 +47,9 @@ interface DashboardStats {
     totalProducts: number;
     totalUsers: number;
     totalNews: number;
+    totalTickets: number;
+    unresolvedTickets: number;
+    pendingTickets?: number;
     recentOrders: RecentOrder[];
 }
 
@@ -124,7 +131,7 @@ const processRevenueData = (orders: { total_amount: number; created_at: string }
             const sunday = new Date(monday);
             sunday.setDate(monday.getDate() + 6);
             sunday.setHours(23, 59, 59, 999);
-            
+
             const dateKey = monday.toLocaleDateString('en-CA');
             const monStr = monday.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
             const sunStr = sunday.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
@@ -141,7 +148,7 @@ const processRevenueData = (orders: { total_amount: number; created_at: string }
                 bMonday.setHours(0, 0, 0, 0);
                 const bSunday = new Date(bMonday);
                 bSunday.setDate(bMonday.getDate() + 7);
-                
+
                 if (oTime >= bMonday.getTime() && oTime < bSunday.getTime()) {
                     bucket.revenue += order.total_amount || 0;
                     bucket.orderCount += 1;
@@ -190,43 +197,55 @@ interface StatCardProps {
     gradient: string;
     trend?: { value: number; positive: boolean };
     subtitle?: string;
+    href?: string;
     onClick?: () => void;
     clickable?: boolean;
     isActive?: boolean;
 }
 
-const StatCard = ({ title, value, icon, gradient, trend, subtitle, onClick, clickable, isActive }: StatCardProps) => (
-    <div 
-        onClick={onClick}
-        className={`relative overflow-hidden rounded-2xl bg-white dark:bg-[#1e2330] border p-6 shadow-sm transition-all duration-300 group ${
-            clickable ? "cursor-pointer hover:shadow-lg hover:-translate-y-0.5" : ""
-        } ${
-            isActive 
-                ? "border-emerald-500 ring-2 ring-emerald-500/20 dark:border-emerald-500 dark:ring-emerald-500/10" 
-                : "border-slate-100 dark:border-white/5"
-        }`}
-    >
-        {/* Gradient blob */}
-        <div className={`absolute -right-6 -top-6 w-28 h-28 rounded-full opacity-10 group-hover:opacity-15 transition-opacity ${gradient}`} />
+const StatCard = ({ title, value, icon, gradient, trend, subtitle, href, onClick, clickable, isActive }: StatCardProps) => {
+    const isClickable = clickable || !!href || !!onClick;
+    const cardContent = (
+        <div
+            onClick={onClick}
+            className={`relative overflow-hidden rounded-2xl bg-white dark:bg-[#1e2330] border p-6 shadow-sm transition-all duration-300 group h-full ${isClickable ? "cursor-pointer hover:shadow-lg hover:-translate-y-0.5" : ""
+                } ${isActive
+                    ? "border-emerald-500 ring-2 ring-emerald-500/20 dark:border-emerald-500 dark:ring-emerald-500/10"
+                    : "border-slate-100 dark:border-white/5"
+                }`}
+        >
+            {/* Gradient blob */}
+            <div className={`absolute -right-6 -top-6 w-28 h-28 rounded-full opacity-10 group-hover:opacity-15 transition-opacity ${gradient}`} />
 
-        <div className="flex items-start justify-between relative">
-            <div className="flex-1">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{title}</p>
-                <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1 leading-tight">{value}</p>
-                {subtitle && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{subtitle}</p>}
-                {trend && (
-                    <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${trend.positive ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
-                        {trend.positive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                        <span>{trend.value}% so với tháng trước</span>
-                    </div>
-                )}
-            </div>
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${gradient}`}>
-                {icon}
+            <div className="flex items-start justify-between relative">
+                <div className="flex-1">
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{title}</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1 leading-tight">{value}</p>
+                    {subtitle && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{subtitle}</p>}
+                    {trend && (
+                        <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${trend.positive ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                            {trend.positive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                            <span>{trend.value}% so với tháng trước</span>
+                        </div>
+                    )}
+                </div>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${gradient}`}>
+                    {icon}
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+
+    if (href) {
+        return (
+            <Link href={href} className="block h-full">
+                {cardContent}
+            </Link>
+        );
+    }
+
+    return cardContent;
+};
 
 // ========================
 // QUICK LINK BUTTON
@@ -396,11 +415,15 @@ export default function AdminDashboard() {
         totalProducts: 0,
         totalUsers: 0,
         totalNews: 0,
+        totalTickets: 0,
+        unresolvedTickets: 0,
+        pendingTickets: 0,
         recentOrders: [],
     });
 
     const [deliveredOrders, setDeliveredOrders] = useState<{ total_amount: number; created_at: string }[]>([]);
     const [showRevenueDetail, setShowRevenueDetail] = useState(false);
+    const [showDefectDetail, setShowDefectDetail] = useState(false);
     const [timeFilter, setTimeFilter] = useState<'day' | 'week' | 'month'>('day');
     const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -411,16 +434,16 @@ export default function AdminDashboard() {
 
     const { yMax, ticks } = useMemo(() => {
         const maxVal = Math.max(...activeRevenueData.map(d => d.revenue), 0);
-        
+
         if (maxVal <= 0) return { yMax: 1000000, ticks: [1000000, 750000, 500000, 250000, 0] };
-        
+
         const log10 = Math.log10(maxVal);
         const magnitude = Math.pow(10, Math.floor(log10));
-        
+
         let roundedMax = Math.ceil(maxVal / (magnitude / 2)) * (magnitude / 2);
         if (roundedMax === maxVal) roundedMax += magnitude;
         if (roundedMax < maxVal) roundedMax = maxVal;
-        
+
         const generatedTicks = [roundedMax, roundedMax * 0.75, roundedMax * 0.5, roundedMax * 0.25, 0];
         return { yMax: roundedMax, ticks: generatedTicks };
     }, [activeRevenueData]);
@@ -442,7 +465,7 @@ export default function AdminDashboard() {
                     revenueRes,
                     productsRes,
                     usersRes,
-                    newsRes,
+                    ticketsRes,
                     pendingRes,
                     processingRes,
                     shippedRes,
@@ -454,7 +477,7 @@ export default function AdminDashboard() {
                     supabase.from("orders").select("total_amount, created_at").eq("status", "delivered"),
                     supabase.from("products").select("*", { count: "exact", head: true }),
                     supabase.from("profiles").select("*", { count: "exact", head: true }),
-                    supabase.from("news").select("*", { count: "exact", head: true }),
+                    supabase.from("warranty_tickets").select("id, status"),
                     supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "pending"),
                     supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "processing"),
                     supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "shipped"),
@@ -470,6 +493,12 @@ export default function AdminDashboard() {
                 const deliveredData = revenueRes.data || [];
                 const totalRevenue = deliveredData.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
 
+                const ticketList = (ticketsRes.data || []) as Array<{ id: string; status?: string }>;
+                const totalTickets = ticketList.length;
+                const unresolvedTickets = ticketList.filter(
+                    (t) => t.status !== "resolved" && t.status !== "closed"
+                ).length;
+
                 setStats({
                     totalOrders: ordersRes.count || 0,
                     pendingOrders: pendingRes.count || 0,
@@ -480,7 +509,10 @@ export default function AdminDashboard() {
                     totalRevenue,
                     totalProducts: productsRes.count || 0,
                     totalUsers: usersRes.count || 0,
-                    totalNews: newsRes.count || 0,
+                    totalNews: 0,
+                    totalTickets,
+                    unresolvedTickets,
+                    pendingTickets: unresolvedTickets,
                     recentOrders: recentRes.data || [],
                 });
                 setDeliveredOrders(deliveredData);
@@ -500,7 +532,8 @@ export default function AdminDashboard() {
             value: loading ? "—" : stats.totalOrders.toLocaleString("vi-VN"),
             icon: <ShoppingCart size={22} />,
             gradient: "bg-gradient-to-br from-orange-400 to-orange-600",
-            subtitle: `${stats.pendingOrders} đang chờ xử lý`,
+            subtitle: `${stats.pendingOrders} đang chờ xử lý • Nhấp để xem`,
+            href: "/admin/orders",
         },
         {
             title: "Doanh thu (đã giao)",
@@ -513,22 +546,42 @@ export default function AdminDashboard() {
             isActive: showRevenueDetail,
         },
         {
+            title: "Ticket lỗi",
+            value: loading ? "—" : `${stats.totalTickets} ticket`,
+            icon: <Flame size={22} />,
+            gradient: "bg-gradient-to-br from-rose-500 to-red-600",
+            subtitle: loading ? "Đang tải dữ liệu..." : `${stats.unresolvedTickets} chưa xử lý • Nhấp để xem biểu đồ`,
+            onClick: () => setShowDefectDetail(!showDefectDetail),
+            clickable: true,
+            isActive: showDefectDetail,
+        },
+        {
             title: "Sản phẩm",
             value: loading ? "—" : stats.totalProducts.toLocaleString("vi-VN"),
             icon: <Package size={22} />,
             gradient: "bg-gradient-to-br from-blue-400 to-indigo-600",
-            subtitle: "Đang kinh doanh",
+            subtitle: "Đang kinh doanh • Nhấp để quản lý",
+            href: "/admin/products",
         },
         {
-            title: "Người dùng",
+            title: "Khách hàng",
             value: loading ? "—" : stats.totalUsers.toLocaleString("vi-VN"),
             icon: <Users size={22} />,
             gradient: "bg-gradient-to-br from-purple-400 to-violet-600",
-            subtitle: "Tài khoản đã đăng ký",
+            subtitle: "Tài khoản khách hàng • Nhấp để quản lý",
+            href: "/admin/users",
         },
     ];
 
     const quickLinks = [
+        {
+            href: "/admin/warranty-tickets",
+            icon: <Ticket size={20} />,
+            label: "Ticket báo lỗi",
+            description: "Chẩn đoán & xử lý sự cố thiết bị",
+            color: "bg-gradient-to-br from-amber-500 to-orange-600",
+            badge: stats.pendingTickets || stats.unresolvedTickets,
+        },
         {
             href: "/admin/orders",
             icon: <ShoppingCart size={20} />,
@@ -545,7 +598,6 @@ export default function AdminDashboard() {
             color: "bg-gradient-to-br from-blue-400 to-indigo-600",
             badge: 0,
         },
-
         {
             href: "/admin/users",
             icon: <Users size={20} />,
@@ -554,13 +606,20 @@ export default function AdminDashboard() {
             color: "bg-gradient-to-br from-purple-400 to-violet-600",
             badge: 0,
         },
-
         {
             href: "/admin/categories",
             icon: <Layers size={20} />,
             label: "Danh mục",
             description: "Phân loại sản phẩm",
             color: "bg-gradient-to-br from-teal-400 to-cyan-600",
+            badge: 0,
+        },
+        {
+            href: "/admin/brands",
+            icon: <ImageIcon size={20} />,
+            label: "Thương hiệu",
+            description: "Quản lý logo & hãng đối tác",
+            color: "bg-gradient-to-br from-pink-500 to-rose-600",
             badge: 0,
         },
         {
@@ -579,7 +638,6 @@ export default function AdminDashboard() {
             color: "bg-gradient-to-br from-sky-400 to-blue-600",
             badge: 0,
         },
-
     ];
 
     return (
@@ -601,11 +659,18 @@ export default function AdminDashboard() {
             </div>
 
             {/* Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 {statCards.map((card, idx) => (
                     <StatCard key={idx} {...card} />
                 ))}
             </div>
+
+            {/* Defect Rate Details Panel (Click-to-Toggle) */}
+            {showDefectDetail && (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-300 rounded-2xl bg-white dark:bg-[#1e2330] border border-slate-100 dark:border-white/5 p-6 shadow-sm">
+                    <DefectRateAnalytics onClose={() => setShowDefectDetail(false)} />
+                </div>
+            )}
 
             {/* Revenue Details Panel */}
             {showRevenueDetail && (
@@ -638,11 +703,10 @@ export default function AdminDashboard() {
                                             setTimeFilter(t.key);
                                             setHoveredIndex(null);
                                         }}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                            timeFilter === t.key
-                                                ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
-                                                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${timeFilter === t.key
+                                            ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
+                                            : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                                            }`}
                                     >
                                         {t.label}
                                     </button>
@@ -660,11 +724,10 @@ export default function AdminDashboard() {
                                     <button
                                         key={m.key}
                                         onClick={() => setViewMode(m.key)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                            viewMode === m.key
-                                                ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
-                                                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === m.key
+                                            ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
+                                            : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                                            }`}
                                     >
                                         {m.label}
                                     </button>
@@ -724,22 +787,22 @@ export default function AdminDashboard() {
                                     const paddingRight = 20;
                                     const paddingTop = 20;
                                     const paddingBottom = 40;
-                                    
+
                                     const chartWidth = width - paddingLeft - paddingRight;
                                     const chartHeight = height - paddingTop - paddingBottom;
-                                    
+
                                     const points = activeRevenueData.map((d, index) => {
                                         const x = paddingLeft + (index / (activeRevenueData.length - 1 || 1)) * chartWidth;
                                         const y = paddingTop + chartHeight - (d.revenue / yMax) * chartHeight;
                                         return { x, y, ...d };
                                     });
-                                    
+
                                     let linePath = "";
                                     if (points.length > 0) {
-                                        linePath = `M ${points[0].x} ${points[0].y} ` + 
+                                        linePath = `M ${points[0].x} ${points[0].y} ` +
                                             points.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ");
                                     }
-                                    
+
                                     let areaPath = "";
                                     if (points.length > 0) {
                                         areaPath = `${linePath} L ${points[points.length - 1].x} ${paddingTop + chartHeight} L ${points[0].x} ${paddingTop + chartHeight} Z`;
@@ -837,11 +900,10 @@ export default function AdminDashboard() {
                                                         cx={p.x}
                                                         cy={p.y}
                                                         r={hoveredIndex === idx ? 6 : 4}
-                                                        className={`transition-all duration-100 ${
-                                                            hoveredIndex === idx 
-                                                                ? "fill-emerald-500 stroke-white stroke-[2px] dark:stroke-[#1e2330]" 
-                                                                : "fill-white dark:fill-[#1e2330] stroke-emerald-500 stroke-[2px] cursor-pointer"
-                                                        }`}
+                                                        className={`transition-all duration-100 ${hoveredIndex === idx
+                                                            ? "fill-emerald-500 stroke-white stroke-[2px] dark:stroke-[#1e2330]"
+                                                            : "fill-white dark:fill-[#1e2330] stroke-emerald-500 stroke-[2px] cursor-pointer"
+                                                            }`}
                                                     />
                                                 ))}
 
@@ -867,7 +929,7 @@ export default function AdminDashboard() {
 
                                             {/* HTML Tooltip Overlay (Absolute Positioned over parent) */}
                                             {hoveredIndex !== null && points[hoveredIndex] && (
-                                                <div 
+                                                <div
                                                     className="absolute z-10 p-3 bg-slate-900/90 dark:bg-white/95 text-white dark:text-slate-900 rounded-xl shadow-xl pointer-events-none text-xs border border-white/10 dark:border-slate-200 transition-all duration-700 ease-out select-none"
                                                     style={{
                                                         left: `${(points[hoveredIndex].x / width) * 100}%`,
